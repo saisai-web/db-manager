@@ -89,6 +89,10 @@ async fn safety_rules_work_with_mysqls_dialect() {
             "{begin}: {evs:?}"
         );
         m.h.exec(m.tab, "rollback").await;
-        assert!(m.h.core.pending_transactions().is_empty());
+        assert!(
+            m.h.core.pending_transactions().is_empty(),
+            "{begin}: {:?}",
+            m.h.core.pending_transactions()
+        );
     }
 }

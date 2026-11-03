@@ -32,10 +32,9 @@ async fn explain_returns_a_plan_tree_on_mysql_and_mariadb() {
     };
 
     // 実行せずに、見積もりの木を求める
-    let Event::ExplainReady { plan, analyze, .. } =
-        explain(&mut m, "select * from big where v = 'b'", false).await
-    else {
-        panic!("explain failed")
+    let ev = explain(&mut m, "select * from big where v = 'b'", false).await;
+    let Event::ExplainReady { plan, analyze, .. } = ev else {
+        panic!("explain failed: {ev:?}")
     };
     assert!(!analyze);
     let mut all = Vec::new();
@@ -48,10 +47,9 @@ async fn explain_returns_a_plan_tree_on_mysql_and_mariadb() {
     assert_eq!(plan.execution_ms, None, "no timings without analyze");
 
     // 実測つき: 実際に実行して、時間と行数が付く
-    let Event::ExplainReady { plan, .. } =
-        explain(&mut m, "select * from big where id > 0", true).await
-    else {
-        panic!("analyze failed")
+    let ev = explain(&mut m, "select * from big where id > 0", true).await;
+    let Event::ExplainReady { plan, .. } = ev else {
+        panic!("analyze failed: {ev:?}")
     };
     let mut all = Vec::new();
     plan.root.walk(&mut all);

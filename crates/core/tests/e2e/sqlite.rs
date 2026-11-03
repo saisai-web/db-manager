@@ -297,7 +297,7 @@ async fn cancel_fetch_limit_sorting_and_schema_browsing() {
     assert_eq!(status(&evs), ExecutionStatus::Cancelled);
 
     // スキーマツリー
-    l.h.exec(l.tab, "create table parent (id integer primary key); create table child (id integer primary key, pid integer references parent(id))").await;
+    let created = l.h.exec(l.tab, "create table parent (id integer primary key); create table child (id integer primary key, pid integer references parent(id))").await;
     let conn = l.h.core_connection_id(l.tab);
     l.h.core.send(Command::LoadTables {
         connection_id: conn.clone(),
@@ -309,7 +309,8 @@ async fn cancel_fetch_limit_sorting_and_schema_browsing() {
     };
     assert_eq!(
         tables.iter().map(|t| t.name.as_str()).collect::<Vec<_>>(),
-        ["child", "parent"]
+        ["child", "parent"],
+        "created: {created:?}\nloaded: {evs:?}"
     );
     l.h.core.send(Command::LoadTableDetails {
         connection_id: conn,
