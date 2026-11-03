@@ -10,7 +10,10 @@ use gpui_kit::{
     AppContext as _, Bounds, Entity, Point, TestAppContext, WindowBounds, WindowHandle,
     WindowOptions, px, size,
 };
-use sqltool_core::{Command, Core, CoreConfig, DriverRegistry};
+use sqltool_core::{
+    Command, ConnectionInput, ConnectionOptions, Core, CoreConfig, DriverRegistry, EnvLabel,
+    PasswordChange, Secret, TlsSetting,
+};
 
 use crate::launch::Launch;
 use crate::model::AppModel;
@@ -21,6 +24,15 @@ pub struct Fixture {
     pub _runtime: tokio::runtime::Runtime,
     pub model: Entity<AppModel>,
     pub window: WindowHandle<Root>,
+    /// テスト用 DB のパスワード。無ければ(認証なしの使い捨てサーバー)`None`
+    pub password: Option<String>,
+}
+
+/// テスト用 DB のパスワードを、接続の保存に渡す形にする。
+pub fn password_change(password: &Option<String>) -> PasswordChange {
+    password.clone().map_or(PasswordChange::Keep, |p| {
+        PasswordChange::Set(Secret::new(p))
+    })
 }
 
 /// 接続を 1 つ登録して開いた画面を返す。DB を用意できなければ `None`。
@@ -40,13 +52,27 @@ pub fn open(cx: &mut TestAppContext, production: bool) -> Option<Fixture> {
         .with("oracle", Arc::new(driver_oracle::OracleDriver));
     let config = CoreConfig::new(Arc::new(storage::MemorySecretStore::new()), drivers);
     let (core, events): (Core, _) = Core::start(config, runtime.handle().clone()).unwrap();
-    let env = if production { "production" } else { "dev" };
-    let json = format!(
-        r#"{{"version":1,"connections":[{{"name":"test","driver":"postgresql","host":"{}","port":{},
-        "database":"{}","username":"{}","options":{{"tls":"disable"}},"env_label":"{env}"}}]}}"#,
-        db.host, db.port, db.dbname, db.user
-    );
-    core.send(Command::ImportConnections { json });
+    let env_label = if production {
+        EnvLabel::Production
+    } else {
+        EnvLabel::Dev
+    };
+    core.send(Command::SaveConnection(ConnectionInput {
+        id: None,
+        name: "test".into(),
+        driver: "postgresql".into(),
+        host: Some(db.host.clone()),
+        port: Some(db.port),
+        database: Some(db.dbname.clone()),
+        username: Some(db.user.clone()),
+        options: ConnectionOptions {
+            tls: TlsSetting::Disable,
+            ..Default::default()
+        },
+        env_label,
+        password: password_change(&db.password),
+        ssh_secret: PasswordChange::Keep,
+    }));
 
     cx.update(|cx| {
         gpui_kit::init(cx);
@@ -86,6 +112,7 @@ pub fn open(cx: &mut TestAppContext, production: bool) -> Option<Fixture> {
         _runtime: runtime,
         model: model.unwrap(),
         window,
+        password: db.password,
     })
 }
 

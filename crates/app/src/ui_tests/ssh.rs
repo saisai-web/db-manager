@@ -56,7 +56,7 @@ fn an_unknown_ssh_host_key_is_confirmed_on_screen_and_then_the_tab_opens(cx: &mu
                 username: db_user,
                 options,
                 env_label: EnvLabel::Dev,
-                password: PasswordChange::Keep,
+                password: password_change(&f.password),
                 ssh_secret: PasswordChange::Keep,
             })
         })
