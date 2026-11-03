@@ -46,7 +46,9 @@ pub(crate) fn decode_bytea_hex(text: &str) -> Option<Vec<u8>> {
         b'A'..=b'F' => Some(b - b'A' + 10),
         _ => None,
     };
-    hex.chunks_exact(2)
+    hex.as_chunks::<2>()
+        .0
+        .iter()
         .map(|p| Some(nibble(p[0])? << 4 | nibble(p[1])?))
         .collect()
 }
