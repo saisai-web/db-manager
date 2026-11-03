@@ -56,7 +56,7 @@ impl Shared {
         planned: Vec<Planned>,
         options: &ExecuteOptions,
         access: &EditAccess,
-    ) {
+    ) -> ExecutionStatus {
         let fetch_limit = resolve_fetch_limit(options.fetch_limit, self.default_fetch_limit);
         self.emit(Event::ExecutionStarted {
             tab: tab.id,
@@ -105,10 +105,7 @@ impl Shared {
             }
         }
         drop(guard);
-        self.emit(Event::ExecutionFinished {
-            tab: tab.id,
-            status,
-        });
+        status
     }
 
     /// 文を 1 つ実行し、結果を判定して、後始末(トランザクション、履歴、スキーマ)をする。

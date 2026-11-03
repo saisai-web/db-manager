@@ -38,18 +38,25 @@ impl Shared {
 
         let result = self.execute_inner(&tab, sql, target, options, access).await;
 
-        {
-            let mut rt = tab.rt();
-            rt.run = RunState::Idle;
-            rt.cancel_requested = false;
-            rt.active_result = None;
-            rt.pending_confirm = None;
+        // 完了の通知を受けた側が、すぐ次の実行を送れるように、先にタブを空きに戻す。
+        // 通知の順序(完了 → 空き)が入れ替わらないよう、状態のロックを持ったまま送る
+        let mut rt = tab.rt();
+        rt.run = RunState::Idle;
+        rt.cancel_requested = false;
+        rt.active_result = None;
+        rt.pending_confirm = None;
+        if let Ok(status) = &result {
+            self.emit(Event::ExecutionFinished {
+                tab: tab_id,
+                status: *status,
+            });
         }
         self.emit(Event::RunStateChanged {
             tab: tab_id,
             state: RunState::Idle,
         });
-        result
+        drop(rt);
+        result.map(|_| ())
     }
 
     pub(crate) async fn execute_inner(
@@ -59,28 +66,20 @@ impl Shared {
         target: ExecuteTarget,
         options: ExecuteOptions,
         access: EditAccess,
-    ) -> Res {
+    ) -> Res<ExecutionStatus> {
         let rules = scan_rules(tab.driver.dialect().lexical_features());
         let planned = plan(&sql, &target, &rules);
         if planned.is_empty() {
-            self.emit(Event::ExecutionFinished {
-                tab: tab.id,
-                status: ExecutionStatus::NothingToRun,
-            });
-            return Ok(());
+            return Ok(ExecutionStatus::NothingToRun);
         }
 
         let read_only = tab.rt().read_only;
         let assessment = assess(&planned, read_only);
         if let Some(r) = assessment.refusal {
-            self.emit(Event::ExecutionFinished {
-                tab: tab.id,
-                status: ExecutionStatus::RefusedReadOnly {
-                    statement_index: r.statement_index,
-                    editor_offset: r.offset,
-                },
+            return Ok(ExecutionStatus::RefusedReadOnly {
+                statement_index: r.statement_index,
+                editor_offset: r.offset,
             });
-            return Ok(());
         }
 
         if !assessment.confirmations.is_empty() {
@@ -111,11 +110,7 @@ impl Shared {
                 rt.cancel_requested
             };
             if !accepted || cancelled {
-                self.emit(Event::ExecutionFinished {
-                    tab: tab.id,
-                    status: ExecutionStatus::Declined,
-                });
-                return Ok(());
+                return Ok(ExecutionStatus::Declined);
             }
             self.emit(Event::RunStateChanged {
                 tab: tab.id,
@@ -123,8 +118,7 @@ impl Shared {
             });
         }
 
-        self.run_batch(tab, planned, &options, &access).await;
-        Ok(())
+        Ok(self.run_batch(tab, planned, &options, &access).await)
     }
 
     pub(crate) fn cancel(self: &Arc<Self>, tab_id: TabId) -> Res {
