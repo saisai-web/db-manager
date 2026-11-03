@@ -186,10 +186,11 @@ fn next_token(sql: &str, pos: usize, rules: &Rules) -> (TokenKind, usize) {
             .unwrap_or(rest.len());
         let end = pos + len;
         // E'...' は単独の E の直後に引用符が続く場合だけ
-        if rules.q_quote && matches!(&sql[pos..end], "q" | "Q" | "nq" | "NQ" | "nQ" | "Nq") {
-            if let Some(string_end) = q_quote_end(sql, end) {
-                return (TokenKind::String, string_end);
-            }
+        if rules.q_quote
+            && matches!(&sql[pos..end], "q" | "Q" | "nq" | "NQ" | "nQ" | "Nq")
+            && let Some(string_end) = q_quote_end(sql, end)
+        {
+            return (TokenKind::String, string_end);
         }
         if rules.e_strings && len == 1 && (c == 'E' || c == 'e') && sql[end..].starts_with('\'') {
             return (TokenKind::String, quoted_end(sql, end + 1, '\'', true));

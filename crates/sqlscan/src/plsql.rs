@@ -266,7 +266,9 @@ mod tests {
     #[test]
     fn unknown_shapes_are_left_to_the_slash_or_end_plainly() {
         assert_eq!(
-            ends("create trigger t for insert on x compound trigger before statement is begin null; end before statement; end t;"),
+            ends(
+                "create trigger t for insert on x compound trigger before statement is begin null; end before statement; end t;"
+            ),
             [false, false, false]
         );
         assert_eq!(
