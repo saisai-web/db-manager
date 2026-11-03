@@ -111,7 +111,11 @@ jobs:
       SQLTOOL_TEST_PG_PASSWORD: postgres
       # DB を用意できなければ、テストを飛ばさず失敗させる
       SQLTOOL_REQUIRE_PG: "1"
+      # 4 つの DB イメージとワークスペース全体のビルドでディスクが足りなくなるため、デバッグ情報は出さない
+      CARGO_PROFILE_DEV_DEBUG: "0"
     steps:
+      # 使わない大きな既定ツールを消して、空き容量を確保する
+      - run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
