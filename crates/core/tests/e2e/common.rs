@@ -151,6 +151,10 @@ impl H {
         let mut got = Vec::new();
         loop {
             let e = self.recv().await;
+            // CI で、たまに落ちるテストの原因を追うための記録(落ちたテストの出力にだけ出る)
+            if std::env::var_os("SQLTOOL_TRACE_EVENTS").is_some() {
+                eprintln!("{e:?}");
+            }
             let hit = pred(&e);
             got.push(e);
             if hit {

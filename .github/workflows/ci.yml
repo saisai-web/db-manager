@@ -147,6 +147,7 @@ jobs:
       SQLTOOL_TEST_MYSQL_PORT: "3306"
       SQLTOOL_TEST_MYSQL_USER: root
       SQLTOOL_REQUIRE_MYSQL: "1"
+      SQLTOOL_TRACE_EVENTS: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
