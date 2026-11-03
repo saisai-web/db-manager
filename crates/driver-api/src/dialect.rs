@@ -16,6 +16,11 @@ pub struct LexicalFeatures {
     pub bracket_ident: bool,
     /// 通常の文字列内のバックスラッシュがエスケープ
     pub backslash_escapes: bool,
+    /// `q'[...]'`(Oracle の引用符の指定つき文字列)
+    pub q_quote: bool,
+    /// PL/SQL のブロック(`BEGIN ... END;`、`CREATE PROCEDURE ... END;`)は `;` で分割せず、
+    /// 単独行の `/` を文の終わりとする
+    pub plsql: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -38,6 +43,17 @@ impl TableRef {
 pub enum PlanFormat {
     /// PostgreSQL の `EXPLAIN (FORMAT JSON)`
     PostgresJson,
+    /// MySQL 8 の `EXPLAIN FORMAT=TREE` / `EXPLAIN ANALYZE`(インデントした木の文字列)
+    MysqlTree,
+    /// MariaDB の `EXPLAIN FORMAT=JSON` / `ANALYZE FORMAT=JSON`
+    MariadbJson,
+    /// SQL Server の `SET SHOWPLAN_XML` / `SET STATISTICS XML` が返す実行計画の XML
+    SqlServerXml,
+    /// Oracle の計画表(`PLAN_TABLE`、実測は `V$SQL_PLAN_STATISTICS_ALL`)の行を、ドライバが
+    /// JSON の配列にしたもの(各要素は `id`、`parent_id`、`operation`、`options`、`object_name`、
+    /// `cost`、`cardinality`、`access_predicates`、`filter_predicates`、実測なら
+    /// `starts`、`output_rows`、`elapsed_us`)
+    OracleJson,
 }
 
 /// DB ごとの SQL の書き方。

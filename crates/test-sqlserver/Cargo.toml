@@ -1,0 +1,15 @@
+[package]
+name = "test-sqlserver"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "結合テスト用の SQL Server。テスト以外からは使わない"
+
+[lints]
+workspace = true
+
+[dependencies]
+tiberius = { version = "0.13.0", default-features = false, features = ["tds73", "rustls"] }
+tokio = { version = "1.54.1", features = ["rt", "net", "time"] }
+tokio-util = { version = "0.7", features = ["compat"] }

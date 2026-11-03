@@ -1,0 +1,21 @@
+[package]
+name = "driver-sqlserver"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait = "0.1.92"
+driver-api = { version = "0.1.0", path = "../driver-api" }
+futures-util = "0.3.34"
+tiberius = { version = "0.13.0", default-features = false, features = ["tds73", "rustls"] }
+tokio = { version = "1.54.1", features = ["rt", "net", "time", "macros", "sync"] }
+tokio-util = { version = "0.7", features = ["compat"] }
+
+[dev-dependencies]
+test-sqlserver = { path = "../test-sqlserver" }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "time"] }

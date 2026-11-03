@@ -75,10 +75,30 @@ impl Render for Literals<'_> {
 
 /// 数値型の列で、そのまま書ける数値なら、引用符なしで見せる(プレビューを読みやすくするため)。
 fn is_plain_number(type_name: &str, v: &str) -> bool {
-    const NUMERIC: [&str; 7] = [
-        "smallint", "integer", "bigint", "numeric", "decimal", "real", "double",
+    const NUMERIC: [&str; 15] = [
+        "smallint",
+        "integer",
+        "bigint",
+        "numeric",
+        "decimal",
+        "real",
+        "double",
+        "int",
+        "tinyint",
+        "mediumint",
+        "float",
+        "number",
+        "bit",
+        "money",
+        "smallmoney",
     ];
-    NUMERIC.iter().any(|n| type_name.starts_with(n))
+    // `bigint unsigned`、`decimal(20,6)`、`double precision` の先頭の語で見る(`interval` は数値ではない)
+    let head = type_name
+        .split(|c: char| c == '(' || c.is_whitespace())
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    NUMERIC.contains(&head.as_str())
         && !v.is_empty()
         && v.parse::<f64>().is_ok_and(f64::is_finite)
         && v.bytes()

@@ -7,6 +7,9 @@ use driver_api::{Flow, PlanFormat, ResultColumn, RowSink, Statement};
 
 use crate::core::{Res, Shared};
 use crate::explain::parse_postgres;
+use crate::explain_mysql::{parse_mariadb_json, parse_mysql_tree};
+use crate::explain_oracle::parse_oracle_json;
+use crate::explain_sqlserver::parse_sqlserver_xml;
 use crate::plan::{ExecuteTarget, plan};
 use crate::rules::scan_rules;
 use crate::types::*;
@@ -57,11 +60,11 @@ impl Shared {
                 "実測つきの実行計画は、文を実際に実行します。SELECT など、読み取りだけの文で使ってください",
             ));
         }
-        let (explain_sql, format) = tab
+        // セッションが直接求められない DB は、方言の文で求める
+        let fallback = tab
             .driver
             .dialect()
-            .explain_structured_sql(&statement.text, analyze)
-            .ok_or_else(|| UserError::new("このデータベースは、実行計画の表示に未対応です"))?;
+            .explain_structured_sql(&statement.text, analyze);
         {
             let mut rt = tab.rt();
             if rt.run != RunState::Idle {
@@ -77,14 +80,27 @@ impl Shared {
         let result = {
             let mut guard = tab.session.lock().await;
             match guard.as_mut() {
-                Some(session) => {
-                    let mut sink = FirstCell::default();
-                    session
-                        .execute(&Statement::new(explain_sql), &mut sink)
-                        .await
-                        .map_err(UserError::from)
-                        .and_then(|_| sink.0.ok_or_else(|| UserError::new("実行計画が空です")))
-                }
+                Some(session) => match session.explain(&statement.text, analyze).await {
+                    Ok(Some(found)) => Ok(found),
+                    Err(e) => Err(UserError::from(e)),
+                    Ok(None) => match fallback {
+                        Some((explain_sql, format)) => {
+                            let mut sink = FirstCell::default();
+                            session
+                                .execute(&Statement::new(explain_sql), &mut sink)
+                                .await
+                                .map_err(UserError::from)
+                                .and_then(|_| {
+                                    sink.0
+                                        .map(|text| (text, format))
+                                        .ok_or_else(|| UserError::new("実行計画が空です"))
+                                })
+                        }
+                        None => Err(UserError::new(
+                            "このデータベースは、実行計画の表示に未対応です",
+                        )),
+                    },
+                },
                 None => Err(UserError::new("接続が切れています。再接続してください")),
             }
         };
@@ -94,9 +110,13 @@ impl Shared {
             tab: tab_id,
             state: RunState::Idle,
         });
-        let json = result?;
+        let (raw, format) = result?;
         let parsed = match format {
-            PlanFormat::PostgresJson => parse_postgres(&json),
+            PlanFormat::PostgresJson => parse_postgres(&raw),
+            PlanFormat::MysqlTree => parse_mysql_tree(&raw),
+            PlanFormat::MariadbJson => parse_mariadb_json(&raw),
+            PlanFormat::SqlServerXml => parse_sqlserver_xml(&raw),
+            PlanFormat::OracleJson => parse_oracle_json(&raw),
         }
         .map_err(UserError::new)?;
         self.emit(Event::ExplainReady {

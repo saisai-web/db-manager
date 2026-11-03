@@ -3,6 +3,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use driver_mysql::MysqlDriver;
 use driver_postgres::PostgresDriver;
 use gpui_kit::base::Root;
 use gpui_kit::{
@@ -32,7 +33,11 @@ pub fn open(cx: &mut TestAppContext, production: bool) -> Option<Fixture> {
         .enable_all()
         .build()
         .unwrap();
-    let drivers = DriverRegistry::new().with("postgresql", Arc::new(PostgresDriver));
+    let drivers = DriverRegistry::new()
+        .with("postgresql", Arc::new(PostgresDriver))
+        .with("mysql", Arc::new(MysqlDriver))
+        .with("sqlserver", Arc::new(driver_sqlserver::SqlServerDriver))
+        .with("oracle", Arc::new(driver_oracle::OracleDriver));
     let config = CoreConfig::new(Arc::new(storage::MemorySecretStore::new()), drivers);
     let (core, events): (Core, _) = Core::start(config, runtime.handle().clone()).unwrap();
     let env = if production { "production" } else { "dev" };

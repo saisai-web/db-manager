@@ -9,8 +9,11 @@ mod ui_tests;
 
 use std::sync::Arc;
 
+use driver_mysql::MysqlDriver;
+use driver_oracle::OracleDriver;
 use driver_postgres::PostgresDriver;
 use driver_sqlite::SqliteDriver;
+use driver_sqlserver::SqlServerDriver;
 use gpui_kit::component::Root;
 use gpui_kit::*;
 use model::AppModel;
@@ -32,6 +35,9 @@ fn main() {
         .expect("ランタイムを起動できません");
     let drivers = DriverRegistry::new()
         .with("postgresql", Arc::new(PostgresDriver))
+        .with("mysql", Arc::new(MysqlDriver))
+        .with("sqlserver", Arc::new(SqlServerDriver))
+        .with("oracle", Arc::new(OracleDriver))
         .with("sqlite", Arc::new(SqliteDriver));
     let config = CoreConfig::desktop(drivers).expect("設定を初期化できません");
     let (core, events) =

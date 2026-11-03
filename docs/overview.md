@@ -15,12 +15,15 @@ The UI is **GPUI Kit** (decided in phase 0: build, rendering and Japanese text r
 | `driver-api` | Definitions of Driver / Session / Dialect / MetadataProvider | Done |
 | `driver-postgres` | PostgreSQL driver (tokio-postgres, TLS via rustls) | Done |
 | `driver-sqlite` | SQLite driver (dedicated thread) | Done |
+| `driver-mysql` | MySQL / MariaDB driver (mysql_async, text protocol, TLS via rustls) | Done |
+| `driver-sqlserver` | SQL Server driver (tiberius, TLS via rustls) | Done |
+| `driver-oracle` | Oracle driver (official pure-Rust thin driver `oracledb`, **beta**; no Instant Client needed) | Done |
 | `storage` | In-app SQLite, OS credential store | Done |
 | `data-io` | CSV / Excel export, CSV import (Shift_JIS, delimiter auto-detection) | Done |
 | `ssh-tunnel` | SSH local port forwarding (russh, 127.0.0.1 only, host key verification) | Done |
 | `core` (package `sqltool-core`) | Session management, execution, safety checks, editing, import/export, completion, execution plans, ER, commands and events | Done |
 | `app` (binary `sqltool`) | UI (GPUI Kit) | Done |
-| `test-pg` / `test-ssh` | PostgreSQL / throwaway sshd for integration tests (test only) | — |
+| `test-pg` / `test-mysql` / `test-sqlserver` / `test-oracle` / `test-ssh` | PostgreSQL / MySQL / SQL Server / Oracle / throwaway sshd for integration tests (test only) | — |
 | `cli` | Development CLI to drive `core` by hand (not the product UI) | — |
 
 ### Features by phase
@@ -31,9 +34,9 @@ The UI is **GPUI Kit** (decided in phase 0: build, rendering and Japanese text r
 | 2 | Table editing (preview → one transaction, optimistic locking), CSV / Excel import/export, history and snippets, SQL completion, TLS | Done |
 | 2 | SSH tunnel (private key / password, host key confirmation on first use, refuse to connect if it changes) | Done |
 | 3 | SQLite | Done |
-| 3 | MySQL / MariaDB, SQL Server | **Not implemented** (see below) |
-| 4 | Execution plan visualization, ER diagram | Done |
-| 4 | Oracle | **Not implemented** (see below) |
+| 3 | MySQL / MariaDB, SQL Server | Done |
+| 4 | Execution plan visualization (PostgreSQL, MySQL, MariaDB), ER diagram | Done |
+| 4 | Oracle | Done (see the limits below) |
 
 ## Running
 
@@ -70,7 +73,7 @@ app ──► core ──► driver-api ◄── driver-*
 * `core` knows no concrete driver (it never branches on a DB name; it uses `Capabilities` and `Dialect`).
   The caller (`app`) registers drivers in `DriverRegistry`.
 * The UI uses only `core` commands and events, and never touches `sqlscan` / `result-store` / `storage` directly.
-* Only the development `sqltool-cli` depends on `test-pg`, for a throwaway DB. Product layers do not depend on `test-pg` / `test-ssh`.
+* Only the development `sqltool-cli` depends on `test-pg`, for a throwaway DB. Product layers do not depend on `test-*` crates.
 * **A source file is at most 500 lines** (enforced by the same test). When a file exceeds it, split it by responsibility. The limit is not raised.
 
 ### Inside `core`
@@ -127,12 +130,21 @@ cargo clippy --workspace --all-targets
 
 ### Database for integration tests
 
-Tests that need a real PostgreSQL pick the server in this order (`crates/test-pg`).
+Tests that need a real database skip when none is available; set `SQLTOOL_REQUIRE_<DB>=1` (`PG`, `MYSQL`, `MSSQL`, `ORACLE`) to **fail instead of skipping**.
+
+PostgreSQL picks the server in this order (`crates/test-pg`).
 
 1. If `SQLTOOL_TEST_PG_HOST` (and `_PORT`, `_USER`, `_PASSWORD`) is set, that server is used (for CI).
 2. Otherwise, `initdb` is looked up in PATH, Homebrew, etc., and a throwaway cluster is created in a temp directory
    (Unix only; it is stopped and deleted automatically when the test ends). `SQLTOOL_PG_BIN_DIR` sets the location.
-3. If neither is available, the test is skipped. Set `SQLTOOL_REQUIRE_PG=1` to **fail instead of skipping**.
+3. If neither is available, the test is skipped.
+
+MySQL / MariaDB (`crates/test-mysql`) works the same way: `SQLTOOL_TEST_MYSQL_HOST` (and `_PORT`, `_USER`, `_PASSWORD`) points at a
+server such as a MariaDB container; otherwise a throwaway `mysqld` is started in a temp directory (`SQLTOOL_MYSQLD` sets the path).
+SQL Server and Oracle cannot be started locally, so `crates/test-sqlserver` (`SQLTOOL_TEST_MSSQL_*`) and `crates/test-oracle`
+(`SQLTOOL_TEST_ORACLE_*`, including `_SERVICE`) need a server, for example the `mcr.microsoft.com/mssql/server` and
+`gvenzl/oracle-free` containers. Each test gets its own database (or Oracle user), created and dropped by the test crate.
+On Apple silicon, the SQL Server image needs a VM with Rosetta (Docker Desktop with Rosetta, or Colima with `--vz-rosetta`).
 
 Tests that touch the real Keychain / Credential Manager are not run normally (`#[ignore]`).
 To run them by hand: `cargo test -p storage -- --ignored keyring`.
@@ -178,13 +190,21 @@ Decisions not written in the design document, or changes forced by what implemen
 
 ## Not implemented / needs checking
 
-### Not implemented
+### Limits of each database
 
-* **MySQL / MariaDB, SQL Server, Oracle** (phases 3 and 4). There is no server in the development environment to verify them,
-  and connection, execution, cancel and read-only guarantees that have not been checked against a real database cannot be shipped,
-  so no code was written. Given a server, implement `Driver` / `Dialect` from `driver-api` and run
-  the `core` integration tests (`crates/core/tests/e2e`) in the same way.
-* Open issues in the design document (distribution scope, whether Oracle is needed, Windows integrated authentication for SQL Server,
+* **MySQL / MariaDB**: DDL is committed implicitly (`transactional_ddl` is false). Syntax-error positions are estimated from the quoted
+  text in the message. Execution plans: MySQL uses `EXPLAIN FORMAT=TREE` / `EXPLAIN ANALYZE` (8.0.18+), MariaDB uses
+  `FORMAT=JSON` / `ANALYZE FORMAT=JSON`; the session picks the statement from the server's version string. `Verify` TLS trusts the bundled
+  web roots plus `ca_file`, not the OS store (a server's default self-signed certificate is refused; use `ca_file` or "skip verify").
+* **SQL Server**: no session-wide read-only mode (production-label protection relies on the statement check in `core`). **Cancel and fetch-limit
+  stop reconnect**: tiberius 0.13's cancel leaves the connection out of step, so the connection is closed and reopened (an uncommitted
+  transaction is rolled back by the server and the error says so). Execution plans are not supported. Windows integrated authentication is not supported.
+* **Oracle**: `oracledb` is a beta crate. It has no cancel API, so cancel kills the session from a second connection
+  (`ALTER SYSTEM KILL SESSION`, needs that privilege; the tab must be reopened afterwards). No session-wide read-only mode. Each statement is committed
+  unless a transaction is started explicitly (`SAVEPOINT` / `SET TRANSACTION`). `SkipVerify`, `ca_file` and TLS over an SSH tunnel are refused (never
+  silently downgraded). Types such as JSON and VECTOR show `(未対応の型: …)`. NUMBER has no trailing zeros. Statement splitting does not understand PL/SQL blocks or
+  `q'[...]'` quoting. Execution plans are not supported.
+* Open issues in the design document (distribution scope, Windows integrated authentication for SQL Server,
   how to build installers and auto-update) are not covered by this implementation.
 
 ### Unverified / needs a human check
@@ -198,6 +218,9 @@ Decisions not written in the design document, or changes forced by what implemen
   **Password authentication** is unverified against a real server (sshd needs PAM, which was not available). Host name
   verification when using TLS (verifying the certificate) over SSH is also unverified (`host` stays as the verification name and the
   connection goes to 127.0.0.1 via `hostaddr`). The SSH fields of the connection form have rendering tests but were not inspected visually.
+* **Servers other than the ones tested**: PostgreSQL 14 (local) and 16 (CI), MySQL 9 (local), MariaDB 11.8 (Docker), SQL Server 2022 (Docker, Rosetta),
+  Oracle Free 23 (Docker) were used. Older versions, Autonomous DB / Azure SQL, and real TLS to Oracle were not tried.
+* **CI**: the service containers for MySQL, MariaDB, SQL Server and Oracle in `.github/workflows/ci.yml` have not run on GitHub Actions.
 * **Testcontainers**: the design document lists Testcontainers for integration tests, but Docker could not be started in the
   development environment and it could not be verified, so it is not included. Instead, the environment variables above (a CI service container)
   and a local throwaway cluster are used.

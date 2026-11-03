@@ -1,0 +1,21 @@
+[package]
+name = "driver-oracle"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait = "0.1.92"
+driver-api = { version = "0.1.0", path = "../driver-api" }
+oracledb = "26.0.0-beta.5"
+serde_json = "1.0.154"
+rustls = { version = "0.23.46", default-features = false, features = ["std", "tls12", "ring"] }
+tokio = { version = "1.54.1", features = ["rt", "net", "time", "macros", "sync"] }
+
+[dev-dependencies]
+test-oracle = { path = "../test-oracle" }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "time"] }

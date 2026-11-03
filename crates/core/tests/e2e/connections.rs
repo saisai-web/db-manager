@@ -106,7 +106,7 @@ async fn unregistered_driver_and_blank_name_are_rejected() {
     let db = pg!();
     let mut h = H::start(db).await;
     let mut input = h.input("x", EnvLabel::Dev);
-    input.driver = "oracle".into();
+    input.driver = "db2".into();
     h.core.send(Command::SaveConnection(input));
     let evs = h.until(|e| matches!(e, Event::CommandFailed { .. })).await;
     let Event::CommandFailed { command, error, .. } = evs.last().unwrap() else {

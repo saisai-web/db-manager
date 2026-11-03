@@ -11,5 +11,7 @@ pub(crate) fn scan_rules(f: LexicalFeatures) -> Rules {
         hash_comment: f.hash_comment,
         bracket_ident: f.bracket_ident,
         backslash_escapes: f.backslash_escapes,
+        q_quote: f.q_quote,
+        plsql: f.plsql,
     }
 }

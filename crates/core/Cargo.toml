@@ -13,6 +13,7 @@ async-trait = "0.1.92"
 data-io = { version = "0.1.0", path = "../data-io" }
 driver-api = { version = "0.1.0", path = "../driver-api" }
 result-store = { version = "0.1.0", path = "../result-store" }
+roxmltree = "0.21.2"
 serde_json = "1.0.154"
 sqlscan = { version = "0.1.0", path = "../sqlscan" }
 ssh-tunnel = { version = "0.1.0", path = "../ssh-tunnel" }
@@ -22,9 +23,15 @@ tokio = { version = "1.54.1", features = ["rt", "rt-multi-thread", "sync", "time
 
 [dev-dependencies]
 data-io = { path = "../data-io" }
+driver-mysql = { path = "../driver-mysql" }
+driver-oracle = { path = "../driver-oracle" }
 driver-postgres = { path = "../driver-postgres" }
 driver-sqlite = { path = "../driver-sqlite" }
+driver-sqlserver = { path = "../driver-sqlserver" }
 serde_json = "1.0.154"
 tempfile = "3.27.0"
+test-mysql = { path = "../test-mysql" }
+test-oracle = { path = "../test-oracle" }
 test-pg = { path = "../test-pg" }
+test-sqlserver = { path = "../test-sqlserver" }
 test-ssh = { path = "../test-ssh" }

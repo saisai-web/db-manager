@@ -2,12 +2,13 @@
 
 use super::prelude::*;
 use gpui_kit::component::WindowExt as _;
-use gpui_kit::component::input::{Input, InputState};
+use gpui_kit::component::input::{Input, InputContent, InputState};
 use sqltool_core::{
     ConnectionInput, ConnectionOptions, ConnectionSummary, EnvLabel, PasswordChange, Secret,
     TlsSetting,
 };
 
+use super::driver_kinds::{self, DriverKind};
 use super::theme;
 use crate::model::{AppModel, Retry};
 
@@ -21,7 +22,7 @@ pub struct ConnectionForm {
     user: Entity<InputState>,
     password: Entity<InputState>,
     env: EnvLabel,
-    /// `postgresql` か `sqlite`
+    /// `DriverKind::id`(`postgresql`、`mysql`、`sqlite`)
     driver: &'static str,
     tls: TlsSetting,
     /// 検証に使う CA 証明書(PEM)のパス
@@ -53,22 +54,20 @@ impl ConnectionForm {
     ) -> Self {
         let c = existing;
         let get = |f: fn(&ConnectionSummary) -> Option<String>| c.and_then(f).unwrap_or_default();
+        let kind = c.map_or(&driver_kinds::KINDS[0], |c| driver_kinds::find(&c.driver));
         let port = c
             .and_then(|c| c.port)
+            .or(kind.default_port)
             .map(|p| p.to_string())
-            .unwrap_or_else(|| "5432".into());
+            .unwrap_or_default();
         let has_password = c.is_some_and(|c| c.has_password);
 
         Self {
             id: c.map(|c| c.id.clone()),
-            driver: if c.is_some_and(|c| c.driver == "sqlite") {
-                "sqlite"
-            } else {
-                "postgresql"
-            },
+            driver: kind.id,
             name: text_input(window, cx, c.map_or("", |c| c.name.as_str()), "接続名"),
             host: text_input(window, cx, &get(|c| c.host.clone()), "localhost"),
-            port: text_input(window, cx, &port, "5432"),
+            port: text_input(window, cx, &port, &port),
             database: text_input(window, cx, &get(|c| c.database.clone()), "データベース名"),
             user: text_input(window, cx, &get(|c| c.username.clone()), "ユーザー名"),
             password: cx.new(|cx| {
@@ -139,6 +138,51 @@ impl ConnectionForm {
             extra,
             ..Default::default()
         }
+    }
+
+    fn driver_button(
+        &self,
+        k: &'static DriverKind,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement + use<> {
+        let b = Button::new(SharedString::from(format!("driver-{}", k.id)))
+            .label(k.label)
+            .small();
+        let b = if self.driver == k.id {
+            b.primary()
+        } else {
+            b.ghost()
+        };
+        b.on_click(cx.listener(move |this, _, window, cx| this.select_driver(k, window, cx)))
+    }
+
+    /// 種類を切り替える。ポート欄が空か、前の種類の既定のままなら、新しい種類の既定に直す。
+    pub(crate) fn select_driver(
+        &mut self,
+        k: &'static DriverKind,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let port = Self::value(&self.port, cx);
+        let previous = driver_kinds::find(self.driver).default_port;
+        if port.is_empty() || previous.is_some_and(|p| port == p.to_string()) {
+            let next = k.default_port.map(|p| p.to_string()).unwrap_or_default();
+            self.port.update(cx, |i, cx| {
+                i.set_value(InputContent::from(next), window, cx)
+            });
+        }
+        self.driver = k.id;
+        cx.notify();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn port_text(&self, cx: &App) -> String {
+        Self::value(&self.port, cx)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn driver_id(&self) -> &'static str {
+        self.driver
     }
 
     pub(super) fn row(label: &str, field: impl IntoElement) -> impl IntoElement {
@@ -230,36 +274,24 @@ impl Render for ConnectionForm {
         let stg = env_button("env-stg", "検証", EnvLabel::Staging, self, cx);
         let prod = env_button("env-prod", "本番", EnvLabel::Production, self, cx);
         let tls = self.tls;
-        let pg = self.driver == "postgresql";
-        let driver_button =
-            |id: &'static str, label: &'static str, value: &'static str, cx: &mut Context<Self>| {
-                let b = Button::new(id).label(label).small();
-                let b = if self.driver == value {
-                    b.primary()
-                } else {
-                    b.ghost()
-                };
-                b.on_click(cx.listener(move |this, _, _, cx| {
-                    this.driver = value;
-                    cx.notify();
-                }))
-            };
-        let driver_buttons = div()
-            .flex()
-            .flex_row()
-            .gap_1()
-            .child(driver_button("driver-pg", "PostgreSQL", "postgresql", cx))
-            .child(driver_button("driver-sqlite", "SQLite", "sqlite", cx));
+        let kind = driver_kinds::find(self.driver);
+        // ネットワークで接続する DB か(false なら、ファイルを開く DB)
+        let net = kind.is_network();
+        let driver_buttons = div().flex().flex_row().gap_1().children(
+            driver_kinds::KINDS
+                .iter()
+                .map(|k| self.driver_button(k, cx)),
+        );
         div()
             .flex()
             .flex_col()
             .gap_2()
             .child(Self::row("接続名", Input::new(&self.name)))
             .child(Self::row("種類", driver_buttons))
-            .child(Self::row(if pg { "ホスト" } else { "ファイル" }, Input::new(&self.host)))
-            .when(pg, |d| {
+            .child(Self::row(if net { "ホスト" } else { "ファイル" }, Input::new(&self.host)))
+            .when(net, |d| {
                 d.child(Self::row("ポート", Input::new(&self.port)))
-                    .child(Self::row("データベース", Input::new(&self.database)))
+                    .child(Self::row(kind.database_label, Input::new(&self.database)))
                     .child(Self::row("ユーザー", Input::new(&self.user)))
                     .child(Self::row("パスワード", Input::new(&self.password)))
             })
@@ -281,7 +313,7 @@ impl Render for ConnectionForm {
                         .child("本番ラベル: 画面が赤枠になり、接続直後は読み取り専用になります"),
                 )
             })
-            .when(pg, |d| d.child(Self::row(
+            .when(net, |d| d.child(Self::row(
                 "暗号化",
                 Button::new("tls")
                     .label(match tls {
@@ -300,10 +332,10 @@ impl Render for ConnectionForm {
                         cx.notify();
                     })),
             )))
-            .when(pg && tls == TlsSetting::Verify, |d| {
+            .when(net && tls == TlsSetting::Verify, |d| {
                 d.child(Self::row("CA 証明書", Input::new(&self.ca_file)))
             })
-            .when(pg && tls != TlsSetting::Verify, |d| {
+            .when(net && tls != TlsSetting::Verify, |d| {
                 let (text, color) = if tls == TlsSetting::SkipVerify {
                     ("警告: 接続先が本物かを確かめません。通信を盗み見る第三者に気づけません", theme::warn_amber())
                 } else {
@@ -311,7 +343,7 @@ impl Render for ConnectionForm {
                 };
                 d.child(div().text_xs().text_color(color).child(text))
             })
-            .when(pg, |d| d.child(self.ssh.render(cx)))
+            .when(net, |d| d.child(self.ssh.render(cx)))
             .children(host_key)
             .children(result_line)
             .child(

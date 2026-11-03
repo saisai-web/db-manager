@@ -71,6 +71,9 @@ fn drivers_depend_only_on_driver_api() {
     let g = runtime_graph();
     assert_eq!(deps(&g, "driver-postgres"), ["driver-api"]);
     assert_eq!(deps(&g, "driver-sqlite"), ["driver-api"]);
+    assert_eq!(deps(&g, "driver-mysql"), ["driver-api"]);
+    assert_eq!(deps(&g, "driver-oracle"), ["driver-api"]);
+    assert_eq!(deps(&g, "driver-sqlserver"), ["driver-api"]);
 }
 
 #[test]
@@ -118,7 +121,13 @@ fn test_support_is_not_a_runtime_dependency_of_the_product_layers() {
         if name == "sqltool-cli" {
             continue; // 開発用 CLI だけは、使い捨ての DB のために使う
         }
-        for support in ["test-pg", "test-ssh"] {
+        for support in [
+            "test-pg",
+            "test-ssh",
+            "test-mysql",
+            "test-oracle",
+            "test-sqlserver",
+        ] {
             assert!(
                 !ds.contains(support),
                 "{name} must not depend on {support} at runtime"

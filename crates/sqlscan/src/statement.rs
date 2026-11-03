@@ -1,5 +1,6 @@
 use std::ops::Range;
 
+use crate::plsql::Block;
 use crate::scanner::{Rules, Token, TokenKind, tokenize};
 
 /// 安全確認とモード判定に使う、文の大まかな種類。
@@ -107,18 +108,33 @@ fn classify(keyword: &str) -> StatementKind {
 pub fn split(sql: &str, rules: &Rules) -> Vec<Statement> {
     let tokens = tokenize(sql, rules);
     let mut out = Vec::new();
-    let mut acc = Accumulator::default();
+    let mut acc = Accumulator::new(rules);
 
     for tok in &tokens {
         if tok.kind.is_trivia() {
             continue;
         }
-        if tok.kind == TokenKind::Punct && tok.text(sql) == ";" && acc.at_boundary() {
+        if rules.plsql && is_slash_line(sql, tok) {
+            // SQL*Plus と同じく、単独行の `/` が文の終わり(`/` 自体は文に含めない)
             if let Some(st) = acc.finish(tok.end) {
                 out.push(st);
             }
-            acc = Accumulator::default();
+            acc = Accumulator::new(rules);
             continue;
+        }
+        if tok.kind == TokenKind::Punct && tok.text(sql) == ";" {
+            acc.semicolon();
+            if acc.at_boundary() {
+                // PL/SQL のブロックでは、最後の `END;` の `;` は文の一部
+                if acc.block.is_unit() {
+                    acc.push(sql, tok);
+                }
+                if let Some(st) = acc.finish(tok.end) {
+                    out.push(st);
+                }
+                acc = Accumulator::new(rules);
+                continue;
+            }
         }
         acc.push(sql, tok);
     }
@@ -126,6 +142,16 @@ pub fn split(sql: &str, rules: &Rules) -> Vec<Statement> {
         out.push(st);
     }
     out
+}
+
+/// その行に `/` だけがある(前後は空白のみ)。
+fn is_slash_line(sql: &str, tok: &Token) -> bool {
+    if tok.kind != TokenKind::Punct || tok.text(sql) != "/" {
+        return false;
+    }
+    let line_start = sql[..tok.start].rfind('\n').map_or(0, |i| i + 1);
+    let line_end = sql[tok.end..].find('\n').map_or(sql.len(), |i| tok.end + i);
+    sql[line_start..tok.start].trim().is_empty() && sql[tok.end..line_end].trim().is_empty()
 }
 
 /// カーソル位置(バイト)に対応する文。
@@ -148,6 +174,9 @@ pub fn statement_at(statements: &[Statement], offset: usize) -> Option<&Statemen
 
 #[derive(Default)]
 struct Accumulator {
+    /// PL/SQL のブロックの終わりの判定(`Rules::plsql` が無効なら何もしない)
+    block: Block,
+    plsql: bool,
     start: Option<usize>,
     end: usize,
     keyword: Option<String>,
@@ -171,8 +200,21 @@ struct Accumulator {
 }
 
 impl Accumulator {
+    fn new(rules: &Rules) -> Self {
+        Self {
+            plsql: rules.plsql,
+            ..Self::default()
+        }
+    }
+
+    fn semicolon(&mut self) {
+        if self.plsql {
+            self.block.semicolon();
+        }
+    }
+
     fn at_boundary(&self) -> bool {
-        self.depth == 0 && !self.in_atomic
+        self.depth == 0 && !self.in_atomic && (!self.plsql || self.block.is_complete())
     }
 
     fn push(&mut self, sql: &str, tok: &Token) {
@@ -201,6 +243,9 @@ impl Accumulator {
     }
 
     fn push_word(&mut self, word: &str) {
+        if self.plsql {
+            self.block.word(word);
+        }
         if matches!(word, "PASSWORD" | "ENCRYPTED" | "IDENTIFIED") {
             self.may_contain_password = true;
         }
@@ -259,7 +304,11 @@ impl Accumulator {
     fn finish(self, terminator_end: usize) -> Option<Statement> {
         let start = self.start?;
         let keyword = self.keyword;
-        let kind = keyword.as_deref().map_or(StatementKind::Other, classify);
+        let mut kind = keyword.as_deref().map_or(StatementKind::Other, classify);
+        // PL/SQL の `BEGIN ... END;` は、トランザクション開始ではなく、何でもできるブロック
+        if self.plsql && matches!(keyword.as_deref(), Some("BEGIN" | "DECLARE")) {
+            kind = StatementKind::Other;
+        }
         let may_contain_password = self.may_contain_password
             || (matches!(kind, StatementKind::Create | StatementKind::Alter)
                 && matches!(

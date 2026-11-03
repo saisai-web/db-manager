@@ -1,0 +1,20 @@
+[package]
+name = "driver-mysql"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait = "0.1.92"
+driver-api = { version = "0.1.0", path = "../driver-api" }
+mysql_async = { version = "0.37.1", default-features = false, features = ["minimal-rust", "default-rustls-ring"] }
+rustls = { version = "0.23.46", default-features = false, features = ["std", "tls12", "ring"] }
+tokio = { version = "1.54.1", features = ["rt", "net", "time", "macros", "sync"] }
+
+[dev-dependencies]
+test-mysql = { path = "../test-mysql" }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "time"] }

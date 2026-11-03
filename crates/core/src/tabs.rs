@@ -191,8 +191,11 @@ async fn apply_read_only(driver: &dyn Driver, session: &mut dyn Session, read_on
     if !driver.capabilities().read_only_session {
         return Ok(());
     }
-    if let Some(sql) = driver.dialect().set_read_only_sql(read_only) {
-        session.execute(&Statement::new(sql), &mut NullSink).await?;
+    match driver.dialect().set_read_only_sql(read_only) {
+        Some(sql) => {
+            session.execute(&Statement::new(sql), &mut NullSink).await?;
+        }
+        None => session.set_read_only(read_only).await?,
     }
     Ok(())
 }

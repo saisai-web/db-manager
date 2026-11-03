@@ -15,7 +15,10 @@ path = "src/main.rs"
 
 [dependencies]
 anyhow = "1.0.104"
+driver-mysql = { version = "0.1.0", path = "../driver-mysql" }
 driver-postgres = { version = "0.1.0", path = "../driver-postgres" }
+driver-oracle = { version = "0.1.0", path = "../driver-oracle" }
+driver-sqlserver = { version = "0.1.0", path = "../driver-sqlserver" }
 driver-sqlite = { version = "0.1.0", path = "../driver-sqlite" }
 gpui-kit = { version = "0.8.1", features = ["tree-sitter", "tree-sitter-sql"] }
 lsp-types = "0.97"
@@ -28,5 +31,8 @@ futures = "0.3.34"
 gpui-kit = { version = "0.8.1", features = ["test-support"] }
 storage = { path = "../storage" }
 tempfile = "3.27.0"
+test-mysql = { path = "../test-mysql" }
+test-oracle = { path = "../test-oracle" }
 test-pg = { path = "../test-pg" }
+test-sqlserver = { path = "../test-sqlserver" }
 test-ssh = { path = "../test-ssh" }

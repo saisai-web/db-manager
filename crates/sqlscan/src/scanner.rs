@@ -15,6 +15,10 @@ pub struct Rules {
     pub bracket_ident: bool,
     /// 通常の文字列内でもバックスラッシュがエスケープになる
     pub backslash_escapes: bool,
+    /// `q'[...]'`(Oracle の引用符の指定つき文字列)
+    pub q_quote: bool,
+    /// PL/SQL のブロック(`BEGIN ... END;`)は `;` で分割せず、単独行の `/` も文の終わりとする
+    pub plsql: bool,
 }
 
 impl Rules {
@@ -28,6 +32,8 @@ impl Rules {
             hash_comment: false,
             bracket_ident: false,
             backslash_escapes: false,
+            q_quote: false,
+            plsql: false,
         }
     }
 
@@ -180,6 +186,11 @@ fn next_token(sql: &str, pos: usize, rules: &Rules) -> (TokenKind, usize) {
             .unwrap_or(rest.len());
         let end = pos + len;
         // E'...' は単独の E の直後に引用符が続く場合だけ
+        if rules.q_quote && matches!(&sql[pos..end], "q" | "Q" | "nq" | "NQ" | "nQ" | "Nq") {
+            if let Some(string_end) = q_quote_end(sql, end) {
+                return (TokenKind::String, string_end);
+            }
+        }
         if rules.e_strings && len == 1 && (c == 'E' || c == 'e') && sql[end..].starts_with('\'') {
             return (TokenKind::String, quoted_end(sql, end + 1, '\'', true));
         }
@@ -187,6 +198,27 @@ fn next_token(sql: &str, pos: usize, rules: &Rules) -> (TokenKind, usize) {
     }
 
     (TokenKind::Punct, after_c)
+}
+
+/// `from` は `q` の直後。`'` に区切り文字が続く形なら、閉じ(`区切り'`)の直後の位置を返す。
+/// 区切りが `[` `{` `(` `<` のときは、対応する閉じ括弧。閉じていなければ入力の終端まで。
+fn q_quote_end(sql: &str, from: usize) -> Option<usize> {
+    let rest = sql[from..].strip_prefix('\'')?;
+    let open = rest.chars().next().filter(|c| !c.is_whitespace())?;
+    let close = match open {
+        '[' => ']',
+        '{' => '}',
+        '(' => ')',
+        '<' => '>',
+        c => c,
+    };
+    let body = from + 1 + open.len_utf8();
+    let pattern = format!("{close}'");
+    Some(
+        sql[body..]
+            .find(&pattern)
+            .map_or(sql.len(), |i| body + i + pattern.len()),
+    )
 }
 
 fn line_end(sql: &str, pos: usize) -> usize {
@@ -312,6 +344,24 @@ mod tests {
     fn dollar_inside_identifier_stays_in_identifier() {
         let k = kinds("select a$b$ from t", &Rules::postgres());
         assert_eq!(k[1], (TokenKind::Word, "a$b$".into()));
+    }
+
+    #[test]
+    fn oracle_q_quotes() {
+        let rules = Rules {
+            q_quote: true,
+            ..Rules::generic()
+        };
+        let k = kinds("select q'[it's; ok]', Q'!a!!b!', nq'(x)' , 1", &rules);
+        assert_eq!(k[1], (TokenKind::String, "q'[it's; ok]'".into()));
+        assert_eq!(k[3], (TokenKind::String, "Q'!a!!b!'".into()));
+        assert_eq!(k[5], (TokenKind::String, "nq'(x)'".into()));
+        // q の後が空白の `q' '` は、ふつうの文字列(q は別の語)
+        let k = kinds("select q' ', 1", &rules);
+        assert_eq!(k[1], (TokenKind::Word, "q".into()));
+        // 規則が無効なら、ふつうの文字列
+        let k = kinds("select q'[a]'", &Rules::generic());
+        assert_eq!(k[1], (TokenKind::Word, "q".into()));
     }
 
     #[test]

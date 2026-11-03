@@ -9,6 +9,15 @@ use tokio::runtime::Handle;
 
 pub const PASSWORD: &str = "pw-never-to-be-leaked-9f3a";
 
+/// ネットワークで接続する DB の接続先。
+pub struct NetConn<'a> {
+    pub host: &'a str,
+    pub port: u16,
+    pub user: &'a str,
+    pub password: Option<&'a str>,
+    pub database: &'a str,
+}
+
 pub struct H {
     pub core: Core,
     pub ev: EventStream,
@@ -26,7 +35,10 @@ impl H {
         let secrets = Arc::new(MemorySecretStore::new());
         let drivers = DriverRegistry::new()
             .with("postgresql", Arc::new(PostgresDriver))
-            .with("sqlite", Arc::new(driver_sqlite::SqliteDriver));
+            .with("sqlite", Arc::new(driver_sqlite::SqliteDriver))
+            .with("mysql", Arc::new(driver_mysql::MysqlDriver))
+            .with("oracle", Arc::new(driver_oracle::OracleDriver))
+            .with("sqlserver", Arc::new(driver_sqlserver::SqlServerDriver));
         let mut cfg = CoreConfig::new(secrets.clone(), drivers);
         tweak(&mut cfg);
         let (core, ev) = Core::start(cfg, Handle::current()).unwrap();
@@ -41,6 +53,11 @@ impl H {
 
     /// PostgreSQL なしで、SQLite だけを使う(接続先の `db` は、使わないので空)。
     pub async fn start_sqlite() -> H {
+        Self::start_without_pg().await
+    }
+
+    /// PostgreSQL を使わない(MySQL など、ほかの DB のテスト用)。
+    pub async fn start_without_pg() -> H {
         let unused = test_pg::TestDb {
             host: String::new(),
             port: 0,
@@ -69,6 +86,28 @@ impl H {
             panic!("{evs:?}")
         };
         self.open_tab_for(&conn.id).await
+    }
+
+    /// ネットワークで接続する DB(PostgreSQL 以外)への接続を保存して、タブを開く。
+    pub async fn open_net_tab(&mut self, driver: &str, conn: NetConn<'_>, env: EnvLabel) -> TabId {
+        let mut input = self.input(driver, env);
+        input.driver = driver.into();
+        input.host = Some(conn.host.into());
+        input.port = Some(conn.port);
+        input.database = Some(conn.database.into());
+        input.username = Some(conn.user.into());
+        input.password = match conn.password {
+            Some(p) => PasswordChange::Set(Secret::new(p)),
+            None => PasswordChange::Keep,
+        };
+        self.core.send(Command::SaveConnection(input));
+        let evs = self
+            .until(|e| matches!(e, Event::ConnectionSaved(_) | Event::CommandFailed { .. }))
+            .await;
+        let Some(Event::ConnectionSaved(saved)) = evs.last().cloned() else {
+            panic!("{evs:?}")
+        };
+        self.open_tab_for(&saved.id).await
     }
 
     /// タブが使っている接続の id。

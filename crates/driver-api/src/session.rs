@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::{ConnectionConfig, Dialect, MetadataProvider, Result};
+use crate::{ConnectionConfig, Dialect, MetadataProvider, PlanFormat, Result};
 
 /// ドライバが対応する機能。`core` と UI は DB 名ではなく、これで分岐する。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -132,6 +132,23 @@ pub trait Session: Send {
 
     /// 文を 1 つ実行し、結果を `sink` へ流す。
     async fn execute(&mut self, stmt: &Statement, sink: &mut dyn RowSink) -> Result<ExecSummary>;
+
+    /// 構造化された実行計画(文字列と、その形式)を、セッション自身が求める。サーバーの種類や版で
+    /// 文が変わる DB 用。対応しなければ `None` を返し、呼び出し側は
+    /// [`Dialect::explain_structured_sql`](crate::Dialect::explain_structured_sql) を使う。
+    async fn explain(
+        &mut self,
+        _sql: &str,
+        _analyze: bool,
+    ) -> Result<Option<(String, PlanFormat)>> {
+        Ok(None)
+    }
+
+    /// セッションの読み取り専用モードを、セッション自身が切り替える。[`Dialect::set_read_only_sql`]
+    /// の SQL で切り替えられない DB 用(SQL Server と Oracle は、文ごとのトランザクションで実現する)。
+    async fn set_read_only(&mut self, _read_only: bool) -> Result<()> {
+        Ok(())
+    }
 
     /// 実行中でも別タスクから呼べる。
     fn canceller(&self) -> Box<dyn Canceller>;
