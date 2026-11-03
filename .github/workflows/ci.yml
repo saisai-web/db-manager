@@ -47,7 +47,8 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_PASSWORD: postgres
+          # e2e テストが接続に渡す固定のパスワード(crates/core/tests/e2e/common.rs の PASSWORD)に揃える
+          POSTGRES_PASSWORD: pw-never-to-be-leaked-9f3a
         ports:
           - 5432:5432
         options: >-
@@ -108,7 +109,7 @@ jobs:
       SQLTOOL_TEST_PG_HOST: localhost
       SQLTOOL_TEST_PG_PORT: "5432"
       SQLTOOL_TEST_PG_USER: postgres
-      SQLTOOL_TEST_PG_PASSWORD: postgres
+      SQLTOOL_TEST_PG_PASSWORD: pw-never-to-be-leaked-9f3a
       # DB を用意できなければ、テストを飛ばさず失敗させる
       SQLTOOL_REQUIRE_PG: "1"
       # 4 つの DB イメージとワークスペース全体のビルドでディスクが足りなくなるため、デバッグ情報は出さない

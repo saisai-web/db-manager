@@ -11,7 +11,7 @@ use driver_api::{ConnectionConfig, Secret};
 use ssh_tunnel::{SshAuth, Tunnel, TunnelConfig, TunnelError};
 use storage::{ConnectionOptions, ConnectionRecord};
 
-use crate::core::{Res, Shared};
+use crate::core::{Res, Shared, lock};
 use crate::types::*;
 
 /// ホスト鍵が未登録(利用者の確認が要る)
@@ -114,7 +114,16 @@ fn host_key_setting(host: &str, port: u16) -> String {
 impl Shared {
     pub(crate) async fn trusted_host_key(&self, host: &str, port: u16) -> Res<Option<String>> {
         let key = host_key_setting(host, port);
+        if let Some(fingerprint) = lock(&self.trusted_now).get(&key) {
+            return Ok(Some(fingerprint.clone()));
+        }
         Ok(self.storage.call(move |s| s.setting(&key)).await?)
+    }
+
+    /// 信頼を、保存より先に覚える。信頼の直後にすぐ接続し直されても、鍵が未確認に見えないように
+    /// (保存は別のタスクで行うので、そのままだと追い越されることがある)。
+    pub(crate) fn remember_trusted_host(&self, host: &str, port: u16, fingerprint: &str) {
+        lock(&self.trusted_now).insert(host_key_setting(host, port), fingerprint.to_string());
     }
 
     /// 利用者が確認した指紋を、そのサーバーの信頼済みホスト鍵として記録する。
@@ -128,6 +137,7 @@ impl Shared {
 
     pub(crate) async fn forget_ssh_host(&self, host: &str, port: u16) -> Res {
         let key = host_key_setting(host, port);
+        lock(&self.trusted_now).remove(&key);
         self.storage.call(move |s| s.delete_setting(&key)).await?;
         Ok(())
     }

@@ -73,12 +73,21 @@ impl Core {
             exports: Mutex::default(),
             edit_plans: Mutex::default(),
             tunnels: Default::default(),
+            trusted_now: Mutex::default(),
         });
         Ok((Core { sh }, EventStream { rx }))
     }
 
     /// コマンドを送る。結果はイベントで返る。待たずに戻る。
     pub fn send(&self, command: Command) {
+        if let Command::TrustSshHost {
+            host,
+            port,
+            fingerprint,
+        } = &command
+        {
+            self.sh.remember_trusted_host(host, *port, fingerprint);
+        }
         let sh = Arc::clone(&self.sh);
         self.sh.rt.spawn(async move { sh.handle(command).await });
     }
@@ -142,6 +151,8 @@ pub(crate) struct Shared {
     pub(crate) edit_plans: Mutex<HashMap<PlanId, crate::edit_ops::PendingEdit>>,
     /// 接続ごとの SSH トンネル(タブとメタデータ用の接続で共有する)
     pub(crate) tunnels: crate::ssh::TunnelMap,
+    /// 信頼した直後のホスト鍵。保存(非同期)が終わる前に続けて送られた接続でも、見えるようにする
+    pub(crate) trusted_now: Mutex<std::collections::HashMap<String, String>>,
 }
 
 pub(crate) type Res<T = ()> = Result<T, UserError>;
