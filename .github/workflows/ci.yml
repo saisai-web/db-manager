@@ -1,0 +1,74 @@
+# 設計書「テストと配布」: 最初から Mac と Windows の両方でビルドし、
+# DB の結合テストは実際の DB サーバーを使う Linux ランナーで行う。
+#
+# 注意: このファイルは、まだ GitHub Actions 上で実行して確かめていない。
+# SSH のテストは /usr/sbin/sshd を使う(Ubuntu の openssh-server)。無ければ飛ばす。
+name: ci
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  # core 以下(UI を除く)のビルドとテスト。結合テストは Linux のジョブで行うため、
+  # ここでは DB がなければ飛ばす。
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --workspace --all-targets
+      - run: cargo test --workspace
+
+  # macOS x64 は、arm64 のランナーからクロスチェックする。
+  check-macos-x64:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --workspace --all-targets --target x86_64-apple-darwin
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SQLTOOL_TEST_PG_HOST: localhost
+      SQLTOOL_TEST_PG_PORT: "5432"
+      SQLTOOL_TEST_PG_USER: postgres
+      SQLTOOL_TEST_PG_PASSWORD: postgres
+      # DB を用意できなければ、テストを飛ばさず失敗させる
+      SQLTOOL_REQUIRE_PG: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      # 画面(app)のテストは、GPUI の描画に必要なシステムライブラリを入れてから
+      - run: sudo apt-get update && sudo apt-get install -y openssh-server libxkbcommon-x11-dev libwayland-dev libasound2-dev libfontconfig-dev
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets
+      - run: cargo test --workspace

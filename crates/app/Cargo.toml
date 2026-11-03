@@ -1,0 +1,32 @@
+[package]
+name = "app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "SQLツールの画面(GPUI)"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "sqltool"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.104"
+driver-postgres = { version = "0.1.0", path = "../driver-postgres" }
+driver-sqlite = { version = "0.1.0", path = "../driver-sqlite" }
+gpui-kit = { version = "0.8.1", features = ["tree-sitter", "tree-sitter-sql"] }
+lsp-types = "0.97"
+serde_json = "1.0.154"
+sqltool-core = { version = "0.1.0", path = "../core" }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "sync", "time"] }
+
+[dev-dependencies]
+futures = "0.3.34"
+gpui-kit = { version = "0.8.1", features = ["test-support"] }
+storage = { path = "../storage" }
+tempfile = "3.27.0"
+test-pg = { path = "../test-pg" }
+test-ssh = { path = "../test-ssh" }

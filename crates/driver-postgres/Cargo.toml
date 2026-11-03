@@ -1,0 +1,24 @@
+[package]
+name = "driver-postgres"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait = "0.1.92"
+driver-api = { version = "0.1.0", path = "../driver-api" }
+futures-util = "0.3.34"
+rustls = { version = "0.23.46", default-features = false, features = ["std", "tls12", "ring"] }
+rustls-native-certs = "0.8.5"
+rustls-pki-types = "1.15.1"
+tokio = { version = "1.54.1", features = ["rt", "net", "time", "macros", "sync"] }
+tokio-postgres = "0.7.18"
+tokio-postgres-rustls = "0.14.0"
+
+[dev-dependencies]
+test-pg = { path = "../test-pg" }
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "time"] }

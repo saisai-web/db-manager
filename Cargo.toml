@@ -1,0 +1,38 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/sqlscan",
+    "crates/result-store",
+    "crates/data-io",
+    "crates/ssh-tunnel",
+    "crates/driver-api",
+    "crates/driver-postgres",
+    "crates/driver-sqlite",
+    "crates/storage",
+    "crates/core",
+    "crates/test-pg",
+    "crates/test-ssh",
+    "crates/cli",
+    "crates/app",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "UNLICENSED"
+publish = false
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+panic = "abort"
+
+# gpui-pre-macos 0.3.10 は、stable 1.97 ではまだ使えない標準ライブラリの不安定機能
+# (`Option::map_or_default`)を 3 箇所で使っている。`.map(..).unwrap_or_default()` に
+# 置き換えただけの版を使う(上流が対応したら、この patch を外す)。
+[patch.crates-io]
+gpui-pre-macos = { path = "vendor/gpui-pre-macos" }

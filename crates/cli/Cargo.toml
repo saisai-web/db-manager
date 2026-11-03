@@ -1,0 +1,21 @@
+[package]
+name = "sqltool-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "core を動かして確かめるための開発用 CLI(製品の UI ではない)"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "sqltool-cli"
+path = "src/main.rs"
+
+[dependencies]
+sqltool-core = { path = "../core" }
+driver-postgres = { path = "../driver-postgres" }
+test-pg = { path = "../test-pg" }
+storage = { path = "../storage" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "io-util", "io-std"] }

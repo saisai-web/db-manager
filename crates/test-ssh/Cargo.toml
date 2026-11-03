@@ -1,0 +1,13 @@
+[package]
+name = "test-ssh"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "テスト用の使い捨て sshd(127.0.0.1、鍵認証のみ)。製品のコードからは使わない"
+
+[lints]
+workspace = true
+
+[dependencies]
+tempfile = "3.27.0"

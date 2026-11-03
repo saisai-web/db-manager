@@ -1,0 +1,19 @@
+[package]
+name = "ssh-tunnel"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "SSH のローカルポート転送(127.0.0.1 で待ち受け、DB への接続を SSH サーバー経由にする)"
+
+[lints]
+workspace = true
+
+[dependencies]
+driver-api = { version = "0.1.0", path = "../driver-api" }
+russh = "0.65.0"
+thiserror = "2.0.21"
+tokio = { version = "1", features = ["net", "io-util", "rt", "sync", "time", "macros"] }
+
+[dev-dependencies]
+test-ssh = { path = "../test-ssh" }

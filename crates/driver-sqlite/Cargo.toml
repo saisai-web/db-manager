@@ -1,0 +1,19 @@
+[package]
+name = "driver-sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait = "0.1.92"
+driver-api = { version = "0.1.0", path = "../driver-api" }
+rusqlite = { version = "0.41.1", features = ["bundled", "column_decltype"] }
+tokio = { version = "1.54.1", features = ["rt", "sync", "time", "macros"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "time"] }
