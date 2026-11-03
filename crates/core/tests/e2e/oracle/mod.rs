@@ -59,4 +59,5 @@ impl Ora {
 
 mod browsing;
 mod editing;
+mod plan;
 mod statements;

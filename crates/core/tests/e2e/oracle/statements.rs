@@ -42,7 +42,7 @@ async fn run_statements_and_see_results_just_like_with_postgresql() {
 async fn safety_rules_work_with_oracles_dialect() {
     let mut o = Ora::start(ora!(), EnvLabel::Production).await;
     // 本番ラベルは読み取り専用で始まり、書き込みは、1 文も実行されない
-    // (Oracle にはセッション全体の読み取り専用がないので、この判定だけが働く)
+    // (DB 側の読み取り専用トランザクションとは別に、core の判定が先に働く)
     let evs =
         o.h.exec(o.tab, "select 1 from dual; create table t (a int)")
             .await;
