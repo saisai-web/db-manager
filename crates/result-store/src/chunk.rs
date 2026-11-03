@@ -168,13 +168,17 @@ impl Chunk {
 
         let mut p = HEADER_LEN;
         let offsets: Vec<u32> = buf[p..p + n_offsets * 4]
-            .chunks_exact(4)
-            .map(|b| u32::from_le_bytes(b.try_into().unwrap()))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|b| u32::from_le_bytes(*b))
             .collect();
         p += n_offsets * 4;
         let nulls: Vec<u64> = buf[p..p + n_null_words * 8]
-            .chunks_exact(8)
-            .map(|b| u64::from_le_bytes(b.try_into().unwrap()))
+            .as_chunks::<8>()
+            .0
+            .iter()
+            .map(|b| u64::from_le_bytes(*b))
             .collect();
         p += n_null_words * 8;
         let data = buf[p..].to_vec();
