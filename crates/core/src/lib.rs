@@ -9,6 +9,7 @@ mod completion;
 mod config;
 mod connections;
 mod core;
+mod design_import;
 mod edit;
 mod edit_ops;
 mod er;
@@ -37,6 +38,7 @@ mod types;
 pub use crate::completion::{Candidate, CandidateKind, Catalog, CatalogTable, Suggestion};
 pub use crate::config::{CoreConfig, DriverRegistry};
 pub use crate::core::{Core, EventStream};
+pub use crate::design_import::{design_draft_path, design_from_details};
 pub use crate::edit::{
     Change, ChangeKind, EditAccess, EditBuffer, EditError, PlannedEdit, TableSource, Value,
     plan as plan_edit,
@@ -54,4 +56,8 @@ pub use crate::plan::{
 pub use crate::result::ResultHandle;
 pub use crate::ssh::{HOST_KEY_CHANGED, HOST_KEY_UNKNOWN};
 pub use crate::types::*;
+/// ER 設計(表・関係のモデル、テキスト記法、DDL、設計書の書き出し)。UI は、このモジュール経由で使う。
+pub mod design {
+    pub use er_design::*;
+}
 pub use result_store::{Access, RowView, Stats};

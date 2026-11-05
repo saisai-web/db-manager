@@ -12,6 +12,7 @@ workspace = true
 async-trait = "0.1.92"
 data-io = { version = "0.1.0", path = "../data-io" }
 driver-api = { version = "0.1.0", path = "../driver-api" }
+er-design = { version = "0.1.0", path = "../er-design" }
 result-store = { version = "0.1.0", path = "../result-store" }
 roxmltree = "0.21.2"
 serde_json = "1.0.154"

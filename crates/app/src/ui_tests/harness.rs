@@ -99,6 +99,7 @@ pub fn open(cx: &mut TestAppContext, production: bool) -> Option<Fixture> {
                         table: None,
                         explain: None,
                         er: None,
+                        design: None,
                     })
                 });
                 model = Some(m.clone());

@@ -78,7 +78,24 @@ pub fn schema_tree(ws: &Workspace, cx: &mut Context<Workspace>) -> impl IntoElem
                 )
                 .when(matches!(row.kind, RowKind::Schema { .. }), |d| {
                     let schema = row.label.clone();
+                    let design_schema = schema.clone();
                     d.child(
+                        Button::new(("er-design", ix))
+                            .label("設計")
+                            .ghost()
+                            .small()
+                            .on_click(cx.listener(move |this, _, window, cx| {
+                                cx.stop_propagation();
+                                let tab = this.model.read(cx).active;
+                                if let Some(tab) = tab {
+                                    let schema = design_schema.clone();
+                                    this.model.update(cx, |m, cx| {
+                                        m.import_schema_to_designer(tab, schema, window, cx)
+                                    });
+                                }
+                            })),
+                    )
+                    .child(
                         Button::new(("er", ix))
                             .label("ER")
                             .ghost()

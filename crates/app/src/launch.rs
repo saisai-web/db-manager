@@ -7,6 +7,7 @@
 //! sqltool --explain "SQL"             接続を開いた後、その SQL の実行計画(実測つき)を表示する(--open と併用)
 //! sqltool --table スキーマ.表名        接続を開いた後、そのテーブルを開く(--open と併用)
 //! sqltool --er スキーマ名              接続を開いた後、そのスキーマの ER 図を表示する(--open と併用)
+//! sqltool --design FILE               起動時に、ER 設計でそのファイル(.erd)を開く
 //! ```
 
 use std::path::PathBuf;
@@ -21,6 +22,8 @@ pub struct Launch {
     pub explain: Option<String>,
     /// 接続を開いた後、このスキーマの ER 図を表示する
     pub er: Option<String>,
+    /// 起動時に ER 設計で開くファイル
+    pub design: Option<PathBuf>,
 }
 
 impl Launch {
@@ -39,6 +42,7 @@ impl Launch {
                 "--table" => out.table = Some(value("--table")?),
                 "--explain" => out.explain = Some(value("--explain")?),
                 "--er" => out.er = Some(value("--er")?),
+                "--design" => out.design = Some(PathBuf::from(value("--design")?)),
                 other => return Err(format!("不明なオプション: {other}")),
             }
         }
@@ -80,6 +84,14 @@ mod tests {
         assert_eq!(l.import, Some(PathBuf::from("a.json")));
         assert_eq!(l.open.as_deref(), Some("dev"));
         assert_eq!(l.run.as_deref(), Some("select 1"));
+    }
+
+    #[test]
+    fn the_designer_needs_no_connection() {
+        let l = parse(&["--design", "shop.erd"]).unwrap();
+        assert_eq!(l.design, Some(PathBuf::from("shop.erd")));
+        assert!(l.open.is_none());
+        assert!(parse(&["--design"]).is_err());
     }
 
     #[test]

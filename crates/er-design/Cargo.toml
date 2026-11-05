@@ -1,0 +1,13 @@
+[package]
+name = "er-design"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "ER 図の設計(表・関係のモデル、テキスト記法、DDL、設計書の書き出し。DB に依存しない)"
+
+[lints]
+workspace = true
+
+[dependencies]
+rust_xlsxwriter = "0.102.0"

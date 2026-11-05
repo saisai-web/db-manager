@@ -75,6 +75,12 @@ impl Render for Workspace {
         let explain = explain_overlay(self, cx);
         let er = er_overlay(self, cx);
         let host_key = host_key_overlay(self, cx);
+        let designer = self
+            .model
+            .read(cx)
+            .designer
+            .clone()
+            .filter(|d| d.read(cx).visible);
 
         let body = h_resizable("main")
             .child(resizable_panel().size(px(280.)).child(tree))
@@ -109,6 +115,7 @@ impl Render for Workspace {
             .children(explain)
             .children(er)
             .children(host_key)
+            .children(designer)
             // 本番ラベル: 画面全体を赤い枠で囲む(操作は邪魔しない)
             .when(production, |d| {
                 d.child(

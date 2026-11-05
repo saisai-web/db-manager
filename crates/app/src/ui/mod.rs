@@ -3,6 +3,7 @@ mod completion;
 mod confirm;
 mod connection_form;
 mod connections;
+mod designer;
 mod driver_kinds;
 mod edit_bar;
 mod edit_preview;
@@ -29,6 +30,7 @@ mod workspace;
 pub use completion::SqlCompletion;
 #[cfg(test)]
 pub(crate) use connection_form::ConnectionForm;
+pub use designer::Designer;
 #[cfg(test)]
 pub(crate) use driver_kinds::KINDS;
 pub use edit_view::{RowRef, row_ref};

@@ -78,6 +78,15 @@ pub fn toolbar(ws: &Workspace, cx: &mut Context<Workspace>) -> impl IntoElement 
         .child(div().flex().flex_row().gap_1().children(chips))
         .child(div().flex_1())
         .child(
+            Button::new("designer")
+                .label("ER設計")
+                .small()
+                .on_click(cx.listener(|this, _, window, cx| {
+                    this.model
+                        .update(cx, |m, cx| m.open_designer(None, window, cx));
+                })),
+        )
+        .child(
             Button::new("history")
                 .label("履歴")
                 .small()

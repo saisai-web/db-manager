@@ -20,6 +20,7 @@ The UI is **GPUI Kit** (decided in phase 0: build, rendering and Japanese text r
 | `driver-oracle` | Oracle driver (official pure-Rust thin driver `oracledb`, **beta**; no Instant Client needed) | Done |
 | `storage` | In-app SQLite, OS credential store | Done |
 | `data-io` | CSV / Excel export, CSV import (Shift_JIS, delimiter auto-detection) | Done |
+| `er-design` | ER design: model, text notation, `CREATE` SQL for 5 databases, auto layout, SVG, specification documents (HTML / Excel). Pure logic, no I/O | Done |
 | `ssh-tunnel` | SSH local port forwarding (russh, 127.0.0.1 only, host key verification) | Done |
 | `core` (package `sqltool-core`) | Session management, execution, safety checks, editing, import/export, completion, execution plans, ER, commands and events | Done |
 | `app` (binary `sqltool`) | UI (GPUI Kit) | Done |
@@ -37,6 +38,7 @@ The UI is **GPUI Kit** (decided in phase 0: build, rendering and Japanese text r
 | 3 | MySQL / MariaDB, SQL Server | Done |
 | 4 | Execution plan visualization (PostgreSQL, MySQL, MariaDB), ER diagram | Done |
 | 4 | Oracle | Done (see the limits below) |
+| 5 | ER design (see below) | Done |
 
 ## Running
 
@@ -54,7 +56,47 @@ Startup options (act at launch, like `psql -c`):
 --table schema.table        open that table (editable)
 --explain "SQL"             show the execution plan (with actual timings)
 --er SCHEMA                 show the ER diagram
+--design FILE               open the ER designer with that file (.erd)
 ```
+
+## ER design
+
+The **ER設計** button opens a designer that needs no connection. The screen is the diagram alone, as large as the window allows;
+the design is one model that can also be seen as a text notation (one line per column, opened with **テキスト** on the left) and
+the two stay in sync. Everything is undoable; the design is kept when the screen is closed and an unsaved draft is restored next time.
+
+Editing happens on the diagram itself:
+
+- click a table or column name to edit it in place (Enter / click elsewhere to confirm, Tab for the next column, Esc to cancel; references follow renames); click a type to pick it from a list (type anything else with 直接入力…);
+- **＋** in a table header adds a column and starts editing its name;
+- double-click a table header (or **詳細**) for a dialog with every item: names, logical names, types, defaults, notes,
+  PK / NOT NULL / UNIQUE, order, delete, table size;
+- double-click a relation line for its properties: constraint name, ON DELETE / ON UPDATE, parent required (child columns NOT NULL), one-to-one (child columns unique), delete;
+- drag a header to move a table (it follows the pointer, no grid), drag its bottom-right corner (the cursor becomes a resize arrow) to give it room: the box gets wider and taller with the extra room left as blank space (the column rows grow only slightly; the text and the header row keep their size) (100 % to 250 %, stored as `@x,y,scale`);
+- zoom the whole diagram with − / + / 全体 or ⌘ (Ctrl) + scroll (20 % to 300 %).
+
+CREATE SQL, the check results and the document export are not on the main screen: **SQL・書き出し…** opens them in a dialog
+(the SQL is generated only while it is open).
+
+```text
+customers "顧客"
+  id    int pk auto "顧客ID"
+  name  varchar(100) not null "氏名"
+orders "注文"
+  id          bigint pk auto
+  customer_id int not null -> customers.id on delete cascade
+  index (customer_id)
+```
+
+| | |
+|---|---|
+| Create tables and relations | type the notation, or **＋ 表を追加** / **関係線を引く** (click a child table, then its parent: the foreign key column is added for you; or click two columns). |
+| `CREATE` SQL | for PostgreSQL / MySQL·MariaDB / SQLite / SQL Server / Oracle from one logical design (types, identity, defaults, comments, dependency order, circular references via `ALTER TABLE`). Save as `.sql`, copy, or put it in the SQL editor of the open connection. Things a database cannot express are listed as warnings, not dropped silently. |
+| Specification documents | **Excel** (cover, table list, relation list, one sheet per table, hyperlinks) and **HTML** (self-contained, with the ER diagram as SVG, printable); the ER diagram alone as SVG. Logical names (論理名), notes, cardinality are included. |
+| From an existing database | **設計** next to a schema in the tree turns its tables, keys and indexes into a design. |
+
+The `CREATE` SQL is verified against real PostgreSQL, SQLite, MySQL, MariaDB, SQL Server and Oracle
+(`crates/core/tests/e2e/design.rs`: run it twice, read the tables back, check keys, relations and `ON DELETE CASCADE`).
 
 ## Architecture
 
@@ -66,10 +108,11 @@ app ──► core ──► driver-api ◄── driver-*
            ├────► result-store
            ├────► storage
            ├────► data-io
+           ├────► er-design
            └────► ssh-tunnel ──► driver-api (Secret type only)
 ```
 
-* Lower crates (`sqlscan`, `result-store`, `driver-api`, `storage`, `data-io`) depend on no other workspace crate.
+* Lower crates (`sqlscan`, `result-store`, `driver-api`, `storage`, `data-io`, `er-design`) depend on no other workspace crate.
 * `core` knows no concrete driver (it never branches on a DB name; it uses `Capabilities` and `Dialect`).
   The caller (`app`) registers drivers in `DriverRegistry`.
 * The UI uses only `core` commands and events, and never touches `sqlscan` / `result-store` / `storage` directly.

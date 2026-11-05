@@ -6,6 +6,7 @@ mod apply;
 mod apply_exec;
 mod apply_schema;
 mod catalog;
+mod designer;
 mod edit;
 mod er;
 mod explain;
@@ -54,6 +55,8 @@ pub struct AppModel {
     pub history: Vec<sqltool_core::HistoryEntry>,
     pub snippets: Vec<sqltool_core::Snippet>,
     /// パネルの入力欄(履歴の絞り込み、スニペットの名前)
+    /// ER 設計の画面(閉じても設計は残る)
+    pub designer: Option<Entity<crate::ui::Designer>>,
     pub library_input: Option<gpui_kit::Entity<gpui_kit::component::input::InputState>>,
     launch: Launch,
     import_pending: bool,
@@ -82,6 +85,7 @@ impl AppModel {
             panel: None,
             history: Vec::new(),
             snippets: Vec::new(),
+            designer: None,
             library_input: None,
             launch: Launch::default(),
             import_pending: false,

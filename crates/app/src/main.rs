@@ -1,6 +1,7 @@
 //! SQLツールの画面(GPUI Kit)。画面の状態と描画だけを持ち、DB に関わる処理はすべて core に任せる。
 
 mod actions;
+mod assets;
 mod launch;
 mod model;
 mod ui;
@@ -49,29 +50,35 @@ fn main() {
         }
     }
 
-    gpui_kit::application().run(move |cx| {
-        gpui_kit::init(cx);
-        actions::bind_keys(cx);
-        let window = gpui_kit::open_window(
-            WindowOptions {
-                window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
-                    None,
-                    size(px(1280.), px(800.)),
-                    cx,
-                ))),
-                ..Default::default()
-            },
-            cx,
-            |window, cx| {
-                let model = AppModel::start(core, events, window.window_handle(), cx);
-                model.update(cx, |m, _| m.set_launch(launch));
-                let view = cx.new(|cx| ui::Workspace::new(model, cx));
-                cx.new(|cx| Root::new(view, window, cx))
-            },
-        )
-        .expect("ウィンドウを開けません");
-        let _ = window;
-        cx.activate(true);
-    });
+    gpui_kit::application()
+        .with_assets(assets::AppAssets)
+        .run(move |cx| {
+            gpui_kit::init(cx);
+            actions::bind_keys(cx);
+            let window = gpui_kit::open_window(
+                WindowOptions {
+                    window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+                        None,
+                        size(px(1280.), px(800.)),
+                        cx,
+                    ))),
+                    ..Default::default()
+                },
+                cx,
+                |window, cx| {
+                    let design = launch.design.clone();
+                    let model = AppModel::start(core, events, window.window_handle(), cx);
+                    model.update(cx, |m, _| m.set_launch(launch));
+                    if let Some(path) = design {
+                        model.update(cx, |m, cx| m.open_designer(Some(path), window, cx));
+                    }
+                    let view = cx.new(|cx| ui::Workspace::new(model, cx));
+                    cx.new(|cx| Root::new(view, window, cx))
+                },
+            )
+            .expect("ウィンドウを開けません");
+            let _ = window;
+            cx.activate(true);
+        });
     drop(runtime);
 }

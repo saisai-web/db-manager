@@ -57,6 +57,7 @@ fn leaf_crates_depend_on_no_other_workspace_crate() {
         "driver-api",
         "storage",
         "data-io",
+        "er-design",
     ] {
         assert!(
             deps(&g, leaf).is_empty(),
@@ -90,6 +91,7 @@ fn core_depends_only_on_the_lower_layers_and_never_on_a_concrete_driver() {
         [
             "data-io",
             "driver-api",
+            "er-design",
             "result-store",
             "sqlscan",
             "ssh-tunnel",

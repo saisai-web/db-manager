@@ -6,6 +6,7 @@ members = [
     "crates/data-io",
     "crates/ssh-tunnel",
     "crates/driver-api",
+    "crates/er-design",
     "crates/driver-postgres",
     "crates/driver-sqlite",
     "crates/driver-oracle",

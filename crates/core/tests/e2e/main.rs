@@ -14,6 +14,7 @@ macro_rules! pg {
 mod cancel;
 mod common;
 mod connections;
+mod design;
 mod editing;
 mod execution;
 mod explain;
