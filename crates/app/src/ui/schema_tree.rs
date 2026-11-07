@@ -1,8 +1,10 @@
 //! 左側のスキーマツリー。行の組み立ては `schema_rows`、ここは描画だけ。
 
 use super::prelude::*;
-use sqltool_core::{TableKind, TableRef};
+use gpui_kit::component::menu::ContextMenuExt as _;
+use sqltool_core::TableKind;
 
+use super::schema_menu::{Target, menu};
 use super::schema_rows::{RowKind, TreeRow, build};
 use super::workspace::Workspace;
 
@@ -40,6 +42,8 @@ pub fn schema_tree(ws: &Workspace, cx: &mut Context<Workspace>) -> impl IntoElem
             .into_any_element();
     };
     let conn = tab.connection.id.clone();
+    let tab_id = tab.id;
+    let model_handle = ws.model.clone();
     let rows = model.schemas.get(&conn).map(build).unwrap_or_default();
 
     let items: Vec<AnyElement> = rows
@@ -48,8 +52,7 @@ pub fn schema_tree(ws: &Workspace, cx: &mut Context<Workspace>) -> impl IntoElem
         .map(|(ix, row)| {
             let muted = matches!(row.kind, RowKind::Note | RowKind::Schema { system: true });
             let key = row.key.clone();
-            let conn = conn.clone();
-            div()
+            let line = div()
                 .id(("tree-row", ix))
                 .flex()
                 .flex_row()
@@ -76,99 +79,25 @@ pub fn schema_tree(ws: &Workspace, cx: &mut Context<Workspace>) -> impl IntoElem
                             row.detail.clone()
                         }),
                 )
-                .when(matches!(row.kind, RowKind::Schema { .. }), |d| {
-                    let schema = row.label.clone();
-                    let design_schema = schema.clone();
-                    d.child(
-                        Button::new(("er-design", ix))
-                            .label("設計")
-                            .ghost()
-                            .small()
-                            .on_click(cx.listener(move |this, _, window, cx| {
-                                cx.stop_propagation();
-                                let tab = this.model.read(cx).active;
-                                if let Some(tab) = tab {
-                                    let schema = design_schema.clone();
-                                    this.model.update(cx, |m, cx| {
-                                        m.import_schema_to_designer(tab, schema, window, cx)
-                                    });
-                                }
-                            })),
-                    )
-                    .child(
-                        Button::new(("er", ix))
-                            .label("ER")
-                            .ghost()
-                            .small()
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                cx.stop_propagation(); // 行の開閉は、しない
-                                let tab = this.model.read(cx).active;
-                                if let Some(tab) = tab {
-                                    let schema = schema.clone();
-                                    this.model.update(cx, |m, cx| m.show_er(tab, schema, cx));
-                                }
-                            })),
-                    )
-                })
-                .when_some(row.table.clone(), |d, (schema, name)| {
-                    d.child(
-                        Button::new(("open-table", ix))
-                            .label("開く")
-                            .ghost()
-                            .small()
-                            .on_click(cx.listener(move |this, _, _, cx| {
-                                cx.stop_propagation(); // 行の開閉は、しない
-                                let tab = this.model.read(cx).active;
-                                if let Some(tab) = tab {
-                                    let table = TableRef::new(&schema, &name);
-                                    this.model.update(cx, |m, _| m.open_table(tab, table));
-                                }
-                            })),
-                    )
-                })
-                .when_some(
-                    row.table.clone().filter(|_| editable_kind(&row.kind)),
-                    |d, (schema, name)| {
-                        d.child(
-                            Button::new(("import-table", ix))
-                                .label("取込")
-                                .ghost()
-                                .small()
-                                .on_click(cx.listener(move |this, _, _, cx| {
-                                    cx.stop_propagation();
-                                    let tab = this.model.read(cx).active;
-                                    let Some(tab) = tab else { return };
-                                    let table = TableRef::new(&schema, &name);
-                                    let rx = cx.prompt_for_paths(gpui_kit::PathPromptOptions {
-                                        files: true,
-                                        directories: false,
-                                        multiple: false,
-                                        prompt: Some("取り込む CSV を選択".into()),
-                                    });
-                                    cx.spawn(async move |this, cx| {
-                                        let Ok(Ok(Some(paths))) = rx.await else {
-                                            return;
-                                        };
-                                        let Some(path) = paths.into_iter().next() else {
-                                            return;
-                                        };
-                                        let _ = this.update(cx, |this, cx| {
-                                            this.model
-                                                .update(cx, |m, _| m.start_import(tab, table, path))
-                                        });
-                                    })
-                                    .detach();
-                                })),
-                        )
-                    },
-                )
                 .when_some(key, |d, key| {
+                    let conn = conn.clone();
                     d.on_click(cx.listener(move |this, _, _, cx| {
                         this.model
                             .update(cx, |m, cx| m.toggle_node(&conn, &key, cx));
                     }))
-                })
-                .into_any_element()
+                });
+            let target = Target {
+                tab: tab_id,
+                schema: matches!(row.kind, RowKind::Schema { .. }).then(|| row.label.to_string()),
+                writable: editable_kind(&row.kind),
+                table: row.table.clone(),
+            };
+            if target.has_menu() {
+                line.context_menu(menu(model_handle.clone(), target))
+                    .into_any_element()
+            } else {
+                line.into_any_element()
+            }
         })
         .collect();
 

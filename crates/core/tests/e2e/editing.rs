@@ -35,6 +35,7 @@ impl Editing {
         self.h.core.send(Command::OpenTable {
             tab: self.tab,
             table: TableRef::new("public", name),
+            limit: None,
         });
         let evs = self
             .h

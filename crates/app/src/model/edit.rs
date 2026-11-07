@@ -33,8 +33,12 @@ impl AppModel {
         self.tab_mut(tab)?.result_mut(result)
     }
 
-    pub fn open_table(&mut self, tab: TabId, table: TableRef) {
-        self.core.send(Command::OpenTable { tab, table });
+    /// テーブルを開く。`limit` が `None` なら全行。
+    pub fn open_table(&mut self, tab: TabId, table: TableRef, limit: Option<u64>) {
+        if let Some(t) = self.tab_mut(tab) {
+            t.table_limit = limit;
+        }
+        self.core.send(Command::OpenTable { tab, table, limit });
     }
 
     /// グリッドのセルを選んだ。編集バーの入力欄に、そのセルの値を入れる。
@@ -261,7 +265,8 @@ impl AppModel {
                     StatusLine::ok(format!("{statements} 件の変更を保存しました")),
                 );
                 if let Some(table) = table {
-                    self.open_table(tab, table);
+                    let limit = self.tab(tab).and_then(|t| t.table_limit);
+                    self.open_table(tab, table, limit);
                 }
             }
             Event::EditRejected { tab, reason, .. } => {

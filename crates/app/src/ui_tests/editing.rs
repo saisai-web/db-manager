@@ -61,7 +61,7 @@ fn editing_a_cell_and_saving_goes_through_preview_and_changes_the_database(
     cx.update(|cx| {
         let tab = f.model.read(cx).active.unwrap();
         f.model.update(cx, |m, _| {
-            m.open_table(tab, TableRef::new("public", "people"))
+            m.open_table(tab, TableRef::new("public", "people"), None)
         });
     });
     wait_until(cx, "the table to open", |cx| {
@@ -189,8 +189,9 @@ fn cancelling_the_preview_saves_nothing(cx: &mut TestAppContext) {
     );
     cx.update(|cx| {
         let tab = f.model.read(cx).active.unwrap();
-        f.model
-            .update(cx, |m, _| m.open_table(tab, TableRef::new("public", "t")));
+        f.model.update(cx, |m, _| {
+            m.open_table(tab, TableRef::new("public", "t"), None)
+        });
     });
     wait_until(cx, "the table", |cx| {
         cx.update(|cx| {

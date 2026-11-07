@@ -86,10 +86,17 @@ pub enum Command {
     },
 
     // テーブル編集
-    /// スキーマツリーのテーブルを開く(全行を閲覧し、キーがあれば編集できる)。
+    /// スキーマツリーのテーブルを開く(キーがあれば編集できる)。`limit` が `None` なら全行。
     OpenTable {
         tab: TabId,
         table: TableRef,
+        limit: Option<u64>,
+    },
+    /// テーブルの SELECT / INSERT / UPDATE / DELETE の雛形を作る(DB には何も送らない)。
+    GenerateSql {
+        tab: TabId,
+        table: TableRef,
+        kind: SqlKind,
     },
     /// 溜めた変更から SQL を作り、プレビューを返す。DB にはまだ何も送らない。
     PrepareEdit {
@@ -205,6 +212,7 @@ impl Command {
             Self::ClearSort { .. } => "ClearSort",
             Self::CloseResult { .. } => "CloseResult",
             Self::OpenTable { .. } => "OpenTable",
+            Self::GenerateSql { .. } => "GenerateSql",
             Self::PrepareEdit { .. } => "PrepareEdit",
             Self::CommitEdit { .. } => "CommitEdit",
             Self::DiscardEdit { .. } => "DiscardEdit",
@@ -225,4 +233,16 @@ impl Command {
             Self::Shutdown => "Shutdown",
         }
     }
+}
+
+/// 雛形を作る SQL の種類。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SqlKind {
+    /// 先頭 100 行(`SELECT_PREVIEW_ROWS`)の SELECT
+    Select,
+    /// 全件の SELECT
+    SelectAll,
+    Insert,
+    Update,
+    Delete,
 }

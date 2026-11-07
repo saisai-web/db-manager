@@ -12,6 +12,7 @@ async fn table_editing_with_optimistic_conflict_detection() {
     o.h.core.send(Command::OpenTable {
         tab: o.tab,
         table: o.table("PEOPLE"),
+        limit: None,
     });
     let evs =
         o.h.until(|e| matches!(e, Event::ExecutionFinished { .. }))

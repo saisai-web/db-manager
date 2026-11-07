@@ -14,6 +14,12 @@ pub struct PendingConfirm {
     pub items: Vec<ConfirmItem>,
 }
 
+/// Query入力の 1 タブ。
+pub struct QueryDoc {
+    pub title: SharedString,
+    pub editor: Entity<EditorState>,
+}
+
 pub struct TabState {
     pub id: TabId,
     pub connection: ConnectionSummary,
@@ -21,23 +27,32 @@ pub struct TabState {
     pub read_only: bool,
     pub txn: TxnState,
     pub run: RunState,
-    pub editor: Entity<EditorState>,
+    /// Query入力のタブ(複数)。実行は、いま選んでいるタブの SQL を使う
+    pub queries: Vec<QueryDoc>,
+    pub current_query: usize,
+    /// 次の「クエリ N」の番号
+    pub next_query_no: usize,
     pub results: Vec<ResultView>,
     pub active_result: usize,
     pub status: StatusLine,
     pub pending_confirm: Option<PendingConfirm>,
     /// 保存前の確認(プレビュー)
     pub edit_preview: Option<super::EditPreviewState>,
-    /// 実行計画の表示
-    pub explain: Option<super::ExplainState>,
     /// ER 図で表示しているスキーマ
     pub er: Option<String>,
     /// 取り込み前の確認(プレビュー)
     pub import_preview: Option<super::ImportPreviewState>,
     pub connected: bool,
+    /// 直前にテーブルを開いたときの行数の上限(保存のあと、同じ範囲で開き直す)
+    pub table_limit: Option<u64>,
 }
 
 impl TabState {
+    /// いま選んでいる Query タブのエディタ。
+    pub fn editor(&self) -> &Entity<EditorState> {
+        &self.queries[self.current_query.min(self.queries.len() - 1)].editor
+    }
+
     pub fn title(&self) -> SharedString {
         self.connection.name.clone().into()
     }

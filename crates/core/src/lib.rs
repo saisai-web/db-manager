@@ -29,6 +29,7 @@ mod results;
 mod rules;
 mod schema;
 mod sink;
+mod sqlgen;
 mod ssh;
 mod storage_actor;
 mod tab;
@@ -54,6 +55,7 @@ pub use crate::plan::{
     summarize,
 };
 pub use crate::result::ResultHandle;
+pub use crate::sqlgen::SELECT_PREVIEW_ROWS;
 pub use crate::ssh::{HOST_KEY_CHANGED, HOST_KEY_UNKNOWN};
 pub use crate::types::*;
 /// ER 設計(表・関係のモデル、テキスト記法、DDL、設計書の書き出し)。UI は、このモジュール経由で使う。

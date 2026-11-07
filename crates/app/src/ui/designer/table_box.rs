@@ -5,13 +5,14 @@ use gpui_kit::assets::IconName;
 use gpui_kit::component::Icon;
 use gpui_kit::component::input::{Input, InputState};
 use sqltool_core::design::diagram::{
-    BADGE_W, HEADER_H, PAD, ROW_H, column_label, header_label, row_height,
+    BADGE_W, COL_BTN_W, HEADER_H, PAD, ROW_H, column_label, header_label, row_height,
 };
 
 use super::Designer;
 use super::diagram::MARGIN;
 use super::inline::Field;
 use crate::ui::prelude::*;
+use crate::ui::theme;
 
 /// 見出しの小さなアイコンボタン(列を足す・詳細)。押しても、表の移動は始まらない。
 fn mini_button(
@@ -171,6 +172,18 @@ pub(super) fn table_box(
             move |this, w, cx| this.open_detail(ix, w, cx),
             cx,
         ))
+        // 選んでいる表だけに、削除の「×」を出す
+        .when(selected, |h| {
+            let name = name.clone();
+            h.child(mini_button(
+                ("t-del", ix),
+                IconName::Close,
+                k,
+                (theme.border, theme.background, theme.accent),
+                move |this, w, cx| this.delete_table(&name, w, cx),
+                cx,
+            ))
+        })
         .test_support();
 
     let rows: Vec<_> =
@@ -256,6 +269,25 @@ pub(super) fn table_box(
                     )
                     .child(name_cell)
                     .children(type_cell)
+                    .child(
+                        div()
+                            .id(("cdel", ix * 10_000 + j))
+                            .w(px(COL_BTN_W * k))
+                            .h_full()
+                            .flex()
+                            .flex_none()
+                            .items_center()
+                            .justify_end()
+                            .text_color(theme.muted_foreground)
+                            .cursor_pointer()
+                            .hover(|h| h.text_color(theme::error_red()))
+                            .on_click(cx.listener(move |this, _, w, cx| {
+                                cx.stop_propagation();
+                                this.delete_column(ix, j, w, cx);
+                            }))
+                            .child(Icon::new(IconName::Close).size(px(11. * k)))
+                            .test_support(),
+                    )
                     .test_support()
             })
             .collect();

@@ -13,6 +13,9 @@ workspace = true
 name = "sqltool"
 path = "src/main.rs"
 
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
+
 [dependencies]
 anyhow = "1.0.104"
 driver-mysql = { version = "0.1.0", path = "../driver-mysql" }

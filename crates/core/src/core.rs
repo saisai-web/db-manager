@@ -168,6 +168,7 @@ fn command_tab(c: &Command) -> Option<TabId> {
         | Command::SetReadOnly { tab, .. }
         | Command::Execute { tab, .. }
         | Command::OpenTable { tab, .. }
+        | Command::GenerateSql { tab, .. }
         | Command::PrepareEdit { tab, .. }
         | Command::CommitEdit { tab, .. }
         | Command::ImportCsv { tab, .. }
@@ -275,7 +276,10 @@ impl Shared {
                 self.execute(tab, sql, target, options, EditAccess::NotATable)
                     .await?
             }
-            Command::OpenTable { tab, table } => self.open_table(tab, table).await?,
+            Command::OpenTable { tab, table, limit } => self.open_table(tab, table, limit).await?,
+            Command::GenerateSql { tab, table, kind } => {
+                self.generate_sql(tab, table, kind).await?
+            }
             Command::PrepareEdit {
                 tab,
                 result,

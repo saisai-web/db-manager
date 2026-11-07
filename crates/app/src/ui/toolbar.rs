@@ -1,4 +1,4 @@
-//! 上部のバー: 接続の選択、タブ、実行と停止、読み取り専用、トランザクションの状態。
+//! 上部のバー: 接続の選択、タブ、ER設計、Query入力、実行と停止(実行中は停止に切り替わる)、トランザクションの状態。
 
 use sqltool_core::{RunState, TabId, TxnState};
 
@@ -22,7 +22,6 @@ struct Controls {
     idle: bool,
     can_run: bool,
     connected: bool,
-    read_only: bool,
     stopping: bool,
     txn: TxnState,
 }
@@ -52,7 +51,6 @@ pub fn toolbar(ws: &Workspace, cx: &mut Context<Workspace>) -> impl IntoElement 
             idle: t.is_idle(),
             can_run: t.is_idle() && t.connected,
             connected: t.connected,
-            read_only: t.read_only,
             stopping: matches!(t.run, RunState::Cancelling),
             txn: t.txn,
         });
@@ -87,22 +85,17 @@ pub fn toolbar(ws: &Workspace, cx: &mut Context<Workspace>) -> impl IntoElement 
                 })),
         )
         .child(
-            Button::new("history")
-                .label("履歴")
+            Button::new("query")
+                .label("Query入力")
                 .small()
+                .disabled(controls.is_none())
                 .on_click(cx.listener(|this, _, window, cx| {
                     this.model.update(cx, |m, cx| {
-                        m.open_panel(crate::model::Panel::History, window, cx)
-                    });
-                })),
-        )
-        .child(
-            Button::new("snippets")
-                .label("スニペット")
-                .small()
-                .on_click(cx.listener(|this, _, window, cx| {
-                    this.model.update(cx, |m, cx| {
-                        m.open_panel(crate::model::Panel::Snippets, window, cx)
+                        if m.query_open {
+                            m.close_query(cx)
+                        } else {
+                            m.open_query(window, cx)
+                        }
                     });
                 })),
         )
@@ -147,19 +140,11 @@ fn tab_chip(c: TabChip, cx: &mut Context<Workspace>) -> impl IntoElement + use<>
 
 fn controls_view(c: Controls, cx: &mut Context<Workspace>) -> impl IntoElement + use<> {
     let id = c.id;
-    let read_only = c.read_only;
     let txn = match c.txn {
         TxnState::Idle => None,
         TxnState::Open => Some(("未コミット", theme::warn_amber())),
         TxnState::Failed => Some(("中断(ROLLBACK が必要)", theme::error_red())),
     };
-    let ro_label = if read_only {
-        "読み取り専用: ON"
-    } else {
-        "読み取り専用: OFF"
-    };
-    let ro = Button::new("ro").label(ro_label).small();
-    let ro = if read_only { ro.primary() } else { ro };
     div()
         .flex()
         .flex_row()
@@ -177,47 +162,16 @@ fn controls_view(c: Controls, cx: &mut Context<Workspace>) -> impl IntoElement +
                     })),
             )
         })
-        .child(
-            ro.disabled(!c.idle)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    this.model
-                        .update(cx, |m, _| m.set_read_only(id, !read_only));
-                })),
-        )
-        .child(
+        // 実行中は、同じ場所が停止のボタンに切り替わる
+        .child(if c.idle {
             Button::new("run")
                 .label("▶ 実行")
                 .primary()
                 .disabled(!c.can_run)
                 .on_click(cx.listener(move |this, _, _, cx| {
                     this.model.update(cx, |m, cx| m.run(id, false, cx));
-                })),
-        )
-        .child(
-            Button::new("explain")
-                .label("計画")
-                .disabled(!c.can_run)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    this.model.update(cx, |m, cx| m.explain(id, false, cx));
-                })),
-        )
-        .child(
-            Button::new("explain-analyze")
-                .label("実測")
-                .disabled(!c.can_run)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    this.model.update(cx, |m, cx| m.explain(id, true, cx));
-                })),
-        )
-        .child(
-            Button::new("run-all")
-                .label("全文")
-                .disabled(!c.can_run)
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    this.model.update(cx, |m, cx| m.run(id, true, cx));
-                })),
-        )
-        .child(
+                }))
+        } else {
             Button::new("stop")
                 .label(if c.stopping {
                     "停止中…"
@@ -225,9 +179,9 @@ fn controls_view(c: Controls, cx: &mut Context<Workspace>) -> impl IntoElement +
                     "■ 停止"
                 })
                 .danger()
-                .disabled(c.idle || c.stopping)
+                .disabled(c.stopping)
                 .on_click(cx.listener(move |this, _, _, cx| {
                     this.model.update(cx, |m, _| m.cancel(id));
-                })),
-        )
+                }))
+        })
 }

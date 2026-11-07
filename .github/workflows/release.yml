@@ -1,0 +1,108 @@
+# 配布物を作る: Mac は署名・公証した dmg(arm64 / x86_64)、Windows は単体の exe。
+# GitHub で Release を publish すると自動で走り、できた dmg と exe をその Release に添付する(手動実行は添付せず成果物だけ作る)。
+#
+# 必要な Secrets(Mac の署名・公証。無ければ署名なしの dmg になる):
+#   MACOS_CERT_P12       Developer ID Application 証明書(秘密鍵つき)の .p12 を base64 にしたもの
+#   MACOS_CERT_PASSWORD  その .p12 のパスワード
+#   NOTARY_KEY_P8        App Store Connect API キー(.p8)の中身
+#   NOTARY_KEY_ID        そのキー ID
+#   NOTARY_ISSUER_ID     Issuer ID
+name: release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x86_64]
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.arch }}
+      - name: 署名の準備
+        id: sign
+        env:
+          MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          NOTARY_KEY_P8: ${{ secrets.NOTARY_KEY_P8 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          if [ -z "$MACOS_CERT_P12" ]; then
+            echo "署名用の Secrets が無いので、ad-hoc 署名(配布不可)で作ります"
+            echo "identity=-" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$MACOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          rm "$RUNNER_TEMP/cert.p12"
+          if [ -n "$NOTARY_KEY_P8" ]; then
+            echo "$NOTARY_KEY_P8" > "$RUNNER_TEMP/notary.p8"
+            xcrun notarytool store-credentials sqltool --key "$RUNNER_TEMP/notary.p8" \
+              --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID" --keychain "$KEYCHAIN"
+            rm "$RUNNER_TEMP/notary.p8"
+          fi
+          echo "identity=" >> "$GITHUB_OUTPUT"
+      - name: dmg を作る
+        env:
+          SIGN_IDENTITY: ${{ steps.sign.outputs.identity }}
+        run: scripts/package-mac.sh ${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-${{ matrix.arch }}
+          path: dist/*.dmg
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release -p app
+      - name: exe を集める
+        shell: bash
+        run: |
+          VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          mkdir dist
+          cp target/release/sqltool.exe "dist/SQLTool-$VERSION-windows-x64.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: dist/*.exe
+
+  release:
+    if: github.event_name == 'release'
+    needs: [mac, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: dist/*

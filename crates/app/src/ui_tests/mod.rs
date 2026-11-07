@@ -4,10 +4,9 @@
 mod completion;
 mod editing;
 mod er;
-mod explain;
 mod harness;
 mod io;
 mod keys;
-mod library;
 mod network_dbs;
+mod query;
 mod ssh;

@@ -1,4 +1,4 @@
-//! キー操作: Cmd/Ctrl + Enter でカーソル位置の文、Cmd/Ctrl + Shift + Enter で全文を実行する。
+//! キー操作: Cmd/Ctrl + Enter でカーソル位置の文(選択範囲があればその範囲)を実行する。
 
 use gpui_kit::component::input::{InputContent, Position};
 use gpui_kit::test::TestWindowExt as _;
@@ -20,8 +20,9 @@ fn chord(key: &str) -> String {
 
 /// エディタに SQL を入れ、カーソルを `line` 行目(0 始まり)の 2 文字目に置いて、キーを押す。
 fn type_and_press(cx: &mut TestAppContext, f: &Fixture, sql: &str, line: u32, key: &str) {
+    open_query_palette(cx, f);
     cx.update_window(f.window.into(), |_, window, cx| {
-        let editor = f.model.read(cx).active_tab().unwrap().editor.clone();
+        let editor = f.model.read(cx).active_tab().unwrap().editor().clone();
         editor.update(cx, |e, cx| {
             e.set_value(InputContent::from(sql.to_string()), window, cx);
             e.set_cursor_position(Position::new(line, 2), window, cx);
@@ -38,7 +39,7 @@ fn editor_text(cx: &mut TestAppContext, f: &Fixture) -> String {
             .read(cx)
             .active_tab()
             .unwrap()
-            .editor
+            .editor()
             .read(cx)
             .value()
             .to_string()
@@ -103,16 +104,6 @@ fn cmd_enter_runs_only_the_statement_at_the_cursor_and_inserts_no_newline(cx: &m
     wait_until(cx, "the first statement's result", |cx| {
         result_cells_now(cx, &f) == ["1"]
     });
-    assert_eq!(editor_text(cx, &f), TWO_STATEMENTS);
-}
-
-#[gpui_kit::test]
-fn cmd_shift_enter_runs_every_statement(cx: &mut TestAppContext) {
-    let Some(f) = open(cx, false) else { return };
-    wait_for_tab(cx, &f);
-    type_and_press(cx, &f, TWO_STATEMENTS, 0, &chord("shift-enter"));
-    wait_for_results(cx, &f, 2);
-    assert_eq!(result_cells(cx, &f), ["1", "22"]);
     assert_eq!(editor_text(cx, &f), TWO_STATEMENTS);
 }
 

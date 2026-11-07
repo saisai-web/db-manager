@@ -1,7 +1,5 @@
 //! core のイベントを、モデルに適用する(接続設定とタブ)。実行と結果は `apply_exec`、スキーマは `apply_schema`。
 
-use gpui_kit::AppContext as _;
-use gpui_kit::component::input::EditorState;
 use gpui_kit::{Context, Window};
 use sqltool_core::{CloseBlock, Event, TabId};
 
@@ -64,6 +62,12 @@ impl AppModel {
                 read_only,
                 server_version,
             } => self.on_tab_opened(tab, connection, read_only, server_version, window, cx),
+            Event::SqlGenerated {
+                tab,
+                table,
+                kind,
+                sql,
+            } => self.on_sql_generated(tab, &table, kind, &sql, window, cx),
             Event::TabClosed { tab } => self.on_tab_closed(tab),
             Event::CloseBlocked { tab, reason } => {
                 let text = match reason {
@@ -129,7 +133,6 @@ impl AppModel {
             | Event::StatementFinished { .. }
             | Event::ExecutionFinished { .. }
             | Event::SortChanged { .. }) => self.apply_exec(e, window, cx),
-            e @ Event::ExplainReady { .. } => self.apply_explain_event(e, cx),
             e @ (Event::ExportProgress { .. }
             | Event::ExportFinished { .. }
             | Event::CsvPreview { .. }
@@ -143,8 +146,10 @@ impl AppModel {
             | Event::Tables { .. }
             | Event::TableDetails { .. }
             | Event::SchemaInvalidated { .. }) => self.apply_schema(e),
-            Event::History(_) | Event::Snippets(_) => self.apply_library_event(event, cx),
-            Event::ConnectionsExported(_)
+            Event::ExplainReady { .. }
+            | Event::History(_)
+            | Event::Snippets(_)
+            | Event::ConnectionsExported(_)
             | Event::ResultClosed { .. }
             | Event::ShutdownComplete => {}
         }
@@ -179,21 +184,7 @@ impl AppModel {
             t.status = StatusLine::ok("再接続しました");
             return;
         }
-        let editor = cx.new(|cx| {
-            EditorState::new(window, cx)
-                .language("sql")
-                .line_number(true)
-                .searchable(true)
-                .placeholder("SQL を入力し、Cmd/Ctrl + Enter で実行")
-        });
-        let provider = crate::ui::SqlCompletion {
-            model: cx.entity().downgrade(),
-            connection: connection.id.clone(),
-            driver: connection.driver.clone(),
-        };
-        editor.update(cx, |e, _| {
-            e.lsp_mut().completion_provider = Some(std::rc::Rc::new(provider));
-        });
+        let editor = self.new_query_editor(&connection, window, cx);
         self.tabs.push(TabState {
             id,
             connection,
@@ -201,16 +192,21 @@ impl AppModel {
             read_only,
             txn: Default::default(),
             run: sqltool_core::RunState::Idle,
-            editor,
+            queries: vec![super::tab::QueryDoc {
+                title: "クエリ 1".into(),
+                editor,
+            }],
+            current_query: 0,
+            next_query_no: 2,
             results: Vec::new(),
             active_result: 0,
             status: StatusLine::ok("接続しました"),
             pending_confirm: None,
             edit_preview: None,
             import_preview: None,
-            explain: None,
             er: None,
             connected: true,
+            table_limit: None,
         });
         self.active = Some(id);
         self.request_schemas_for(id);

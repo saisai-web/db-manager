@@ -154,6 +154,14 @@ pub enum Event {
         reason: EditRejection,
     },
 
+    /// `Command::GenerateSql` の結果
+    SqlGenerated {
+        tab: TabId,
+        table: TableRef,
+        kind: SqlKind,
+        sql: String,
+    },
+
     // 実行計画
     ExplainReady {
         tab: TabId,

@@ -18,8 +18,13 @@ pub(crate) struct PendingEdit {
 }
 
 impl Shared {
-    /// スキーマツリーのテーブルを全行で開く。キーがあれば、結果は編集できる。
-    pub(crate) async fn open_table(self: &Arc<Self>, tab_id: TabId, table: TableRef) -> Res {
+    /// スキーマツリーのテーブルを開く(`limit` が `None` なら全行)。キーがあれば、結果は編集できる。
+    pub(crate) async fn open_table(
+        self: &Arc<Self>,
+        tab_id: TabId,
+        table: TableRef,
+        limit: Option<u64>,
+    ) -> Res {
         let tab = self.tab(tab_id)?;
         let connection = tab.connection.id.clone();
         let cache = self.schema_cache(&connection);
@@ -32,7 +37,7 @@ impl Shared {
             .find(|t| t.name == table.name)
             .map_or(TableKind::Table, |t| t.kind);
         let access = TableSource::access(&details, kind);
-        let sql = tab.driver.dialect().select_table_sql(&table, None);
+        let sql = tab.driver.dialect().select_table_sql(&table, limit);
         self.execute(
             tab_id,
             sql,

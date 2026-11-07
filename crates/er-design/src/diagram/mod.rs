@@ -37,8 +37,10 @@ pub const PAD: f32 = 10.0;
 pub const NAME_MIN_W: f32 = 80.0;
 pub const GAP_X: f32 = 110.0;
 pub const GAP_Y: f32 = 36.0;
-/// 見出しの右端に置く「＋」「詳細」ボタンの幅(画面だけが使うが、箱の幅に含める)
-pub const HEADER_BTN_W: f32 = 60.0;
+/// 見出しの右端に置く「＋」「詳細」「×」ボタンの幅(画面だけが使うが、箱の幅に含める)
+pub const HEADER_BTN_W: f32 = 84.0;
+/// 列の行の右端に置く「×」ボタンの幅(画面だけが使うが、箱の幅に含める)
+pub const COL_BTN_W: f32 = 20.0;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rect {
@@ -105,7 +107,7 @@ pub fn box_size(t: &Table, labels: Labels) -> (f32, f32) {
         } else {
             text_width(&ty) + 16.0
         };
-        w = w.max(BADGE_W + text_width(&name).max(NAME_MIN_W) + ty_w + PAD);
+        w = w.max(BADGE_W + text_width(&name).max(NAME_MIN_W) + ty_w + PAD + COL_BTN_W);
     }
     let k = t.factor();
     (

@@ -32,7 +32,7 @@ The UI is **GPUI Kit** (decided in phase 0: build, rendering and Japanese text r
 | Phase | Feature | Status |
 |---|---|---|
 | 1 | Connection management (production label, passwords only in the OS credential store), SQL execution (selection, cancel, timeout), result grid (1M rows), schema tree | Done |
-| 2 | Table editing (preview → one transaction, optimistic locking), CSV / Excel import/export, history and snippets, SQL completion, TLS | Done |
+| 2 | Table editing (preview → one transaction, optimistic locking), CSV / Excel import/export, SQL completion, TLS | Done |
 | 2 | SSH tunnel (private key / password, host key confirmation on first use, refuse to connect if it changes) | Done |
 | 3 | SQLite | Done |
 | 3 | MySQL / MariaDB, SQL Server | Done |
@@ -54,7 +54,6 @@ Startup options (act at launch, like `psql -c`):
 --open NAME                 open the connection with that name
 --run "SQL"                 after opening the connection, run the whole SQL
 --table schema.table        open that table (editable)
---explain "SQL"             show the execution plan (with actual timings)
 --er SCHEMA                 show the ER diagram
 --design FILE               open the ER designer with that file (.erd)
 ```
@@ -267,3 +266,20 @@ Decisions not written in the design document, or changes forced by what implemen
 * **Testcontainers**: the design document lists Testcontainers for integration tests, but Docker could not be started in the
   development environment and it could not be verified, so it is not included. Instead, the environment variables above (a CI service container)
   and a local throwaway cluster are used.
+
+## Screen layout
+
+The top bar has only: Connect, the connection tabs, ER design, Query input, and Run (which turns into Stop while a
+statement is running). The Query input opens above the results, with tabs (＋ adds one) so several SQL texts can be kept side by side
+(Cmd/Ctrl + Enter runs the statement at the cursor, or the selection). History, snippets, the execution-plan view, "run all" and the read-only toggle
+were removed from the screen; `core` still keeps the execution history, and production connections stay read-only.
+
+Right-clicking a row in the schema tree opens a menu grouped by feature:
+
+* schema: **Diagram** (import into the ER design, ER diagram)
+* table: **View** (first 100 rows / all rows), **Make SQL** (SELECT / INSERT / UPDATE / DELETE templates, each in a new Query tab);
+  "first 100 rows" / "all rows" also show their SELECT in a new Query tab, **Data** (CSV import)
+
+In the ER design, the drawing tools (add table, relation line, auto layout) are a large rail on the left, separated
+by a line from the text toggle. A selected table shows a small x at the top right of its header, and every column
+row has an x at the right of its type.

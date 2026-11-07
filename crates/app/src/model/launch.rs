@@ -49,23 +49,16 @@ impl AppModel {
     pub(super) fn launch_run(&mut self, tab: TabId, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(name) = self.launch.table.take() {
             let (schema, table) = name.split_once('.').unwrap_or(("public", name.as_str()));
-            self.open_table(tab, sqltool_core::TableRef::new(schema, table));
+            self.open_table(tab, sqltool_core::TableRef::new(schema, table), None);
         }
         if let Some(schema) = self.launch.er.take() {
             self.show_er(tab, schema, cx);
-        }
-        if let Some(sql) = self.launch.explain.take() {
-            if let Some(t) = self.tab(tab) {
-                t.editor
-                    .update(cx, |e, cx| e.set_value(InputContent::from(sql), window, cx));
-            }
-            self.explain(tab, true, cx);
         }
         let Some(sql) = self.launch.run.take() else {
             return;
         };
         if let Some(t) = self.tab(tab) {
-            t.editor
+            t.editor()
                 .update(cx, |e, cx| e.set_value(InputContent::from(sql), window, cx));
         }
         self.run(tab, true, cx);

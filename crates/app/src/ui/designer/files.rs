@@ -138,7 +138,7 @@ impl Designer {
     /// CREATE 文を、開いている接続の SQL エディタに入れる(実行はしない)。
     pub(super) fn send_to_editor(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let sql = self.derived.sql.to_string();
-        let editor = self.model.read(cx).active_tab().map(|t| t.editor.clone());
+        let editor = self.model.read(cx).active_tab().map(|t| t.editor().clone());
         let Some(editor) = editor else {
             self.note(
                 true,

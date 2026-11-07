@@ -1,5 +1,8 @@
 //! SQLツールの画面(GPUI Kit)。画面の状態と描画だけを持ち、DB に関わる処理はすべて core に任せる。
 
+// リリースビルドの Windows で、起動時にコンソール窓が開かないようにする
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod actions;
 mod assets;
 mod launch;

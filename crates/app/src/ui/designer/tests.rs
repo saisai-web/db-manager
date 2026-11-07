@@ -297,7 +297,7 @@ fn selecting_two_columns_relates_exactly_those_columns(cx: &mut TestAppContext) 
 }
 
 #[gpui_kit::test]
-fn deleting_a_table_and_laying_out(cx: &mut TestAppContext) {
+fn deleting_a_table_with_its_cross_and_laying_out(cx: &mut TestAppContext) {
     let f = setup(cx);
     f.type_text(
         cx,
@@ -308,8 +308,9 @@ fn deleting_a_table_and_laying_out(cx: &mut TestAppContext) {
         "users\n  id int pk\nposts\n  id int pk\n  user_id int -> users.id\n",
     );
     f.read(cx, |d| assert_eq!(d.design.tables[1].foreign_keys.len(), 1));
+    // 表を選ぶと、見出しに「×」が出る
     f.click(cx, ("th", 0usize));
-    f.click(cx, "d-delete");
+    f.click(cx, ("t-del", 0usize));
     f.read(cx, |d| {
         assert_eq!(d.design.tables.len(), 1);
         assert!(
@@ -464,4 +465,20 @@ fn a_long_create_script_is_cut_for_display_but_not_for_copy_or_save(cx: &mut Tes
         assert!(d.derived.preview.contains("省略しています"));
     });
     f.render(cx);
+}
+
+#[gpui_kit::test]
+fn a_column_is_removed_with_the_cross_at_the_right_of_its_type(cx: &mut TestAppContext) {
+    let f = setup(cx);
+    f.type_text(cx, "users\n  id int pk\n  name text\n");
+    f.read(cx, |d| assert_eq!(d.design.tables[0].columns.len(), 2));
+    f.click(cx, ("cdel", 1usize));
+    f.read(cx, |d| {
+        let names: Vec<_> = d.design.tables[0]
+            .columns
+            .iter()
+            .map(|c| c.name.as_str())
+            .collect();
+        assert_eq!(names, ["id"]);
+    });
 }

@@ -11,7 +11,7 @@ fn complete(cx: &mut TestAppContext, f: &Fixture, sql_with_cursor: &str) -> (Vec
     let offset = sql_with_cursor.find('|').unwrap();
     let sql = sql_with_cursor.replace('|', "");
     let task = with_window(cx, f, |window, cx| {
-        let editor = f.model.read(cx).active_tab().unwrap().editor.clone();
+        let editor = f.model.read(cx).active_tab().unwrap().editor().clone();
         editor.update(cx, |e, cx| {
             e.set_value(InputContent::from(sql.clone()), window, cx)
         });

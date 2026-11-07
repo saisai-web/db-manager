@@ -97,7 +97,6 @@ pub fn open(cx: &mut TestAppContext, production: bool) -> Option<Fixture> {
                         open: Some("test".into()),
                         run: None,
                         table: None,
-                        explain: None,
                         er: None,
                         design: None,
                     })
@@ -153,21 +152,37 @@ pub fn with_window<R>(
         .unwrap()
 }
 
+/// Query入力のパレットを開く。エディタは、画面に出ているときだけ SQL を受け取る。
+pub fn open_query_palette(cx: &mut TestAppContext, f: &Fixture) {
+    use gpui_kit::test::TestWindowExt as _;
+    with_window(cx, f, |window, cx| {
+        f.model.update(cx, |m, cx| m.open_query(window, cx));
+        window.render_frame(cx);
+    });
+}
+
+/// 実行を頼んでから、最初のイベントが届くまでの状態の目印。
+const PENDING: &str = "(実行待ち)";
+
 /// タブのエディタに SQL を入れて、全文を実行し、終わるまで待つ。
 pub fn run_sql(cx: &mut TestAppContext, f: &Fixture, sql: &str) {
     use gpui_kit::component::input::InputContent;
     with_window(cx, f, |window, cx| {
-        let editor = f.model.read(cx).active_tab().unwrap().editor.clone();
+        let editor = f.model.read(cx).active_tab().unwrap().editor().clone();
         editor.update(cx, |e, cx| {
             e.set_value(InputContent::from(sql.to_string()), window, cx)
         });
         let tab = f.model.read(cx).active.unwrap();
-        f.model.update(cx, |m, cx| m.run(tab, true, cx));
+        f.model.update(cx, |m, cx| {
+            // 実行の開始が届く前に「終わった」と見えないよう、目印を置く
+            m.tab_mut(tab).unwrap().status = crate::model::StatusLine::info(PENDING);
+            m.run(tab, true, cx);
+        });
     });
     wait_until(cx, "the statements to finish", |cx| {
         cx.update(|cx| {
             let t = f.model.read(cx).active_tab().unwrap();
-            t.is_idle() && !t.status.text.starts_with("実行中")
+            t.is_idle() && t.status.text != PENDING && !t.status.text.starts_with("実行中")
         })
     });
 }

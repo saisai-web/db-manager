@@ -204,7 +204,7 @@ impl AppModel {
         cx: &mut Context<Self>,
     ) {
         let Some(t) = self.tab(tab) else { return };
-        t.editor.update(cx, |e, cx| {
+        t.editor().update(cx, |e, cx| {
             let pos = e.text().offset_to_position(offset);
             e.set_cursor_position(pos, window, cx);
         });

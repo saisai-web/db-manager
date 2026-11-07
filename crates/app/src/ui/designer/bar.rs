@@ -1,4 +1,4 @@
-//! ER 設計の上のツールバー。ファイル、元に戻す、表・関係の操作、表示。文字を使わず、アイコンと吹き出しで示す。
+//! ER 設計の上のツールバー。ファイル、元に戻す、表示。文字を使わず、アイコンと吹き出しで示す。
 
 use gpui_kit::assets::IconName;
 use gpui_kit::component::Selectable as _;
@@ -79,35 +79,6 @@ pub(super) fn toolbar(d: &Designer, cx: &mut Context<Designer>) -> impl IntoElem
             tool("d-redo", IconName::Redo2, "やり直す")
                 .disabled(d.redo.is_empty())
                 .on_click(cx.listener(|this, _, w, cx| this.redo(w, cx))),
-        )
-        .child(separator(cx))
-        .child(
-            tool("d-add", IconName::Table2, "表を追加")
-                .on_click(cx.listener(|this, _, w, cx| this.add_table(w, cx))),
-        )
-        .child(
-            tool("d-connect", IconName::Link, "関係線を引く")
-                .selected(d.connect)
-                .on_click(cx.listener(|this, _, _, cx| {
-                    this.connect = !this.connect;
-                    this.pick = None;
-                    let hint = if this.connect {
-                        "関係線: つなぐ表(または列)をクリックし、続けて参照される側をクリックします"
-                    } else {
-                        "関係線の操作を終えました"
-                    };
-                    this.note(false, hint);
-                    cx.notify();
-                })),
-        )
-        .child(
-            tool("d-delete", IconName::Trash, "選んだ表を削除")
-                .disabled(d.selected.is_none())
-                .on_click(cx.listener(|this, _, w, cx| this.delete_selected(w, cx))),
-        )
-        .child(
-            tool("d-layout", IconName::LayoutGrid, "自動で配置し直す")
-                .on_click(cx.listener(|this, _, w, cx| this.auto_layout(w, cx))),
         )
         .child(separator(cx))
         .child(

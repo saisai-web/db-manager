@@ -3,7 +3,7 @@
 
 use gpui_kit::{App, KeyBinding, actions};
 
-actions!(sqltool, [RunAtCursor, RunAll, CancelRun, OpenConnections]);
+actions!(sqltool, [RunAtCursor, CancelRun, OpenConnections]);
 
 /// アクションを受け取る範囲を示すキーコンテキスト。
 pub const CONTEXT: &str = "Workspace";
@@ -26,7 +26,6 @@ const EDITOR_CONTEXT: &str = "Input && mode == editor";
 pub fn bind_keys(cx: &mut App) {
     cx.bind_keys([
         KeyBinding::new(chord!("enter"), RunAtCursor, Some(EDITOR_CONTEXT)),
-        KeyBinding::new(chord!("shift-enter"), RunAll, Some(EDITOR_CONTEXT)),
         KeyBinding::new(chord!("."), CancelRun, Some(CONTEXT)),
         KeyBinding::new(chord!("o"), OpenConnections, Some(CONTEXT)),
     ]);
@@ -37,12 +36,7 @@ mod tests {
     #[test]
     fn every_binding_is_a_valid_keystroke() {
         // 不正な表記だと、起動時に panic する
-        for k in [
-            chord!("enter"),
-            chord!("shift-enter"),
-            chord!("."),
-            chord!("o"),
-        ] {
+        for k in [chord!("enter"), chord!("."), chord!("o")] {
             gpui_kit::Keystroke::parse(k).unwrap_or_else(|e| panic!("{k}: {e:?}"));
         }
     }

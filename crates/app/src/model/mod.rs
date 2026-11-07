@@ -9,11 +9,10 @@ mod catalog;
 mod designer;
 mod edit;
 mod er;
-mod explain;
 mod io;
 mod launch;
-mod library;
 mod pump;
+mod query;
 mod schema;
 mod ssh;
 mod status;
@@ -27,9 +26,7 @@ use sqltool_core::{ConnectionId, ConnectionSummary, Core, EventStream, TabId, Us
 
 pub use edit::EditPreviewState;
 pub use er::graph_of;
-pub use explain::ExplainState;
 pub use io::{ImportPreviewState, default_mapping};
-pub use library::{Panel, preview};
 pub use pump::start_pump;
 pub use schema::{SchemaState, schema_key, table_key};
 pub use ssh::{HostKeyPrompt, Retry, is_host_key_prompt};
@@ -50,14 +47,10 @@ pub struct AppModel {
     last_attempt: Option<Retry>,
     /// タブに属さない通知(接続の保存・削除など)
     pub notice: Option<StatusLine>,
-    /// 開いているパネル(履歴、スニペット)と、その内容
-    pub panel: Option<Panel>,
-    pub history: Vec<sqltool_core::HistoryEntry>,
-    pub snippets: Vec<sqltool_core::Snippet>,
-    /// パネルの入力欄(履歴の絞り込み、スニペットの名前)
     /// ER 設計の画面(閉じても設計は残る)
     pub designer: Option<Entity<crate::ui::Designer>>,
-    pub library_input: Option<gpui_kit::Entity<gpui_kit::component::input::InputState>>,
+    /// Query 入力のパレットを開いている
+    pub query_open: bool,
     launch: Launch,
     import_pending: bool,
     /// 接続の一覧を受信済み
@@ -82,11 +75,8 @@ impl AppModel {
             host_key: None,
             last_attempt: None,
             notice: None,
-            panel: None,
-            history: Vec::new(),
-            snippets: Vec::new(),
             designer: None,
-            library_input: None,
+            query_open: false,
             launch: Launch::default(),
             import_pending: false,
             listed: false,

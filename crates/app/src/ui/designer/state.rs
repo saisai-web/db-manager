@@ -331,18 +331,6 @@ impl Designer {
         }
     }
 
-    pub(super) fn delete_selected(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(name) = self.selected.clone() else {
-            return;
-        };
-        self.edit(window, cx, |d| {
-            d.remove_table(&name);
-            Ok(format!(
-                "表 {name} を削除しました(この表を参照する関係も消えました)"
-            ))
-        });
-    }
-
     pub(super) fn auto_layout(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.edit(window, cx, |d| {
             d.tables.iter_mut().for_each(|t| t.pos = None);

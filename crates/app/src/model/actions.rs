@@ -64,10 +64,6 @@ impl AppModel {
         cx.notify();
     }
 
-    pub fn set_read_only(&mut self, tab: TabId, read_only: bool) {
-        self.core.send(Command::SetReadOnly { tab, read_only });
-    }
-
     // ---- 実行 ----
 
     /// `all` なら全文、そうでなければ選択範囲(なければカーソル位置の文)を実行する。
@@ -76,7 +72,7 @@ impl AppModel {
         if !t.is_idle() {
             return;
         }
-        let (sql, target) = t.editor.read_with(cx, |e, _| editor_target(e, all));
+        let (sql, target) = t.editor().read_with(cx, |e, _| editor_target(e, all));
         self.core.send(Command::Execute {
             tab,
             sql,

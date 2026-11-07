@@ -4,7 +4,6 @@
 //! sqltool --import-connections FILE   接続設定(エクスポートした JSON)を取り込む
 //! sqltool --open NAME                 起動時に、その名前の接続を開く
 //! sqltool --run "SQL"                 接続を開いた後、SQL を全文実行する(--open と併用)
-//! sqltool --explain "SQL"             接続を開いた後、その SQL の実行計画(実測つき)を表示する(--open と併用)
 //! sqltool --table スキーマ.表名        接続を開いた後、そのテーブルを開く(--open と併用)
 //! sqltool --er スキーマ名              接続を開いた後、そのスキーマの ER 図を表示する(--open と併用)
 //! sqltool --design FILE               起動時に、ER 設計でそのファイル(.erd)を開く
@@ -18,8 +17,6 @@ pub struct Launch {
     pub open: Option<String>,
     pub run: Option<String>,
     pub table: Option<String>,
-    /// 接続を開いた後、この SQL の実行計画(実測つき)を表示する
-    pub explain: Option<String>,
     /// 接続を開いた後、このスキーマの ER 図を表示する
     pub er: Option<String>,
     /// 起動時に ER 設計で開くファイル
@@ -40,18 +37,14 @@ impl Launch {
                 "--open" => out.open = Some(value("--open")?),
                 "--run" => out.run = Some(value("--run")?),
                 "--table" => out.table = Some(value("--table")?),
-                "--explain" => out.explain = Some(value("--explain")?),
                 "--er" => out.er = Some(value("--er")?),
                 "--design" => out.design = Some(PathBuf::from(value("--design")?)),
                 other => return Err(format!("不明なオプション: {other}")),
             }
         }
-        let needs_open =
-            out.run.is_some() || out.table.is_some() || out.explain.is_some() || out.er.is_some();
+        let needs_open = out.run.is_some() || out.table.is_some() || out.er.is_some();
         if needs_open && out.open.is_none() {
-            return Err(
-                "--run、--table、--explain、--er は --open と一緒に指定してください".into(),
-            );
+            return Err("--run、--table、--er は --open と一緒に指定してください".into());
         }
         Ok(out)
     }

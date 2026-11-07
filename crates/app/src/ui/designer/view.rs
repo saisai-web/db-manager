@@ -1,7 +1,5 @@
 //! ER 設計の画面全体の組み立て。
 
-use gpui_kit::assets::IconName;
-use gpui_kit::component::Icon;
 use gpui_kit::component::input::Editor;
 use gpui_kit::component::resizable::{h_resizable, resizable_panel};
 use sqltool_core::design::Severity;
@@ -10,6 +8,7 @@ use super::bar::toolbar;
 use super::detail_view::detail_dialog;
 use super::diagram::diagram;
 use super::dialog::{export_dialog, modal};
+use super::palette::rail;
 use super::relation_view::relation_dialog;
 use super::type_menu::type_panel;
 use super::{Designer, SidePanel};
@@ -61,7 +60,7 @@ impl Render for Designer {
             .min_h_0()
             .flex()
             .flex_row()
-            .child(text_rail(self, cx))
+            .child(rail(self, cx))
             .child(main);
 
         div()
@@ -101,46 +100,6 @@ impl Render for Designer {
                     }),
             )
     }
-}
-
-/// 左端の細いレール。パネルのアイコンと「テキスト」の文字のボタンで、テキスト記法の開閉をする。
-fn text_rail(d: &Designer, cx: &mut Context<Designer>) -> impl IntoElement + use<> {
-    let theme = cx.theme().clone();
-    let on = d.show_text;
-    let ink = if on {
-        theme.primary
-    } else {
-        theme.muted_foreground
-    };
-    let icon = Icon::new(IconName::PanelLeft).size(px(18.)).text_color(ink);
-    div()
-        .w(px(44.))
-        .h_full()
-        .flex_none()
-        .flex()
-        .flex_col()
-        .items_center()
-        .pt_2()
-        .border_r_1()
-        .border_color(theme.border)
-        .child(
-            div()
-                .id("d-text")
-                .w(px(38.))
-                .py_1()
-                .flex()
-                .flex_col()
-                .items_center()
-                .gap_1()
-                .rounded_md()
-                .cursor_pointer()
-                .when(on, |b| b.bg(theme.accent))
-                .hover(|h| h.bg(theme.accent))
-                .on_click(cx.listener(|this, _, w, cx| this.set_show_text(!this.show_text, w, cx)))
-                .child(icon)
-                .child(div().text_size(px(9.)).text_color(ink).child("テキスト"))
-                .test_support(),
-        )
 }
 
 fn status(d: &Designer, cx: &mut Context<Designer>) -> impl IntoElement + use<> {
