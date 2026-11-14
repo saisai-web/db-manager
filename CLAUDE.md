@@ -1,7 +1,7 @@
 # CLAUDE.md
 
-## 方針
+## Policy
 
-- 世界で一番軽量で、高速なアプリを目指す。
-- PC への負荷(CPU・メモリ・ディスク I/O・起動時間)を極力かけない。
-- すべて Rust で開発する。
+- Aim to be the lightest and fastest app in the world.
+- Put as little load as possible on the PC (CPU, memory, disk I/O, startup time).
+- Develop everything in Rust.

@@ -1,7 +1,7 @@
 # sqltool
 
 A desktop database client for Mac and Windows (Rust) whose top priority is not to weigh down the PC.
-The overall design is in the design document (`SQLツール 設計書.docx`, not included in this repository).
+The overall design is in the design document (a Japanese `.docx`, not included in this repository).
 
 ## Status
 
@@ -60,28 +60,28 @@ Startup options (act at launch, like `psql -c`):
 
 ## ER design
 
-The **ER設計** button opens a designer that needs no connection. The screen is the diagram alone, as large as the window allows;
-the design is one model that can also be seen as a text notation (one line per column, opened with **テキスト** on the left) and
+The **ER Design** button opens a designer that needs no connection. The screen is the diagram alone, as large as the window allows;
+the design is one model that can also be seen as a text notation (one line per column, opened with **Text** on the left) and
 the two stay in sync. Everything is undoable; the design is kept when the screen is closed and an unsaved draft is restored next time.
 
 Editing happens on the diagram itself:
 
-- click a table or column name to edit it in place (Enter / click elsewhere to confirm, Tab for the next column, Esc to cancel; references follow renames); click a type to pick it from a list (type anything else with 直接入力…);
+- click a table or column name to edit it in place (Enter / click elsewhere to confirm, Tab for the next column, Esc to cancel; references follow renames); click a type to pick it from a list (type anything else with **Custom…**);
 - **＋** in a table header adds a column and starts editing its name;
-- double-click a table header (or **詳細**) for a dialog with every item: names, logical names, types, defaults, notes,
+- double-click a table header (or **Details**) for a dialog with every item: names, logical names, types, defaults, notes,
   PK / NOT NULL / UNIQUE, order, delete, table size;
 - double-click a relation line for its properties: constraint name, ON DELETE / ON UPDATE, parent required (child columns NOT NULL), one-to-one (child columns unique), delete;
 - drag a header to move a table (it follows the pointer, no grid), drag its bottom-right corner (the cursor becomes a resize arrow) to give it room: the box gets wider and taller with the extra room left as blank space (the column rows grow only slightly; the text and the header row keep their size) (100 % to 250 %, stored as `@x,y,scale`);
-- zoom the whole diagram with − / + / 全体 or ⌘ (Ctrl) + scroll (20 % to 300 %).
+- zoom the whole diagram with − / + / **Fit** or ⌘ (Ctrl) + scroll (20 % to 300 %).
 
-CREATE SQL, the check results and the document export are not on the main screen: **SQL・書き出し…** opens them in a dialog
+CREATE SQL, the check results and the document export are not on the main screen: **SQL / Export…** opens them in a dialog
 (the SQL is generated only while it is open).
 
 ```text
-customers "顧客"
-  id    int pk auto "顧客ID"
-  name  varchar(100) not null "氏名"
-orders "注文"
+customers "Customer"
+  id    int pk auto "Customer ID"
+  name  varchar(100) not null "Full name"
+orders "Order"
   id          bigint pk auto
   customer_id int not null -> customers.id on delete cascade
   index (customer_id)
@@ -89,10 +89,10 @@ orders "注文"
 
 | | |
 |---|---|
-| Create tables and relations | type the notation, or **＋ 表を追加** / **関係線を引く** (click a child table, then its parent: the foreign key column is added for you; or click two columns). |
+| Create tables and relations | type the notation, or **+ Add table** / **Draw relation** (click a child table, then its parent: the foreign key column is added for you; or click two columns). |
 | `CREATE` SQL | for PostgreSQL / MySQL·MariaDB / SQLite / SQL Server / Oracle from one logical design (types, identity, defaults, comments, dependency order, circular references via `ALTER TABLE`). Save as `.sql`, copy, or put it in the SQL editor of the open connection. Things a database cannot express are listed as warnings, not dropped silently. |
-| Specification documents | **Excel** (cover, table list, relation list, one sheet per table, hyperlinks) and **HTML** (self-contained, with the ER diagram as SVG, printable); the ER diagram alone as SVG. Logical names (論理名), notes, cardinality are included. |
-| From an existing database | **設計** next to a schema in the tree turns its tables, keys and indexes into a design. |
+| Specification documents | **Excel** (cover, table list, relation list, one sheet per table, hyperlinks) and **HTML** (self-contained, with the ER diagram as SVG, printable); the ER diagram alone as SVG. Logical names, notes, cardinality are included. |
+| From an existing database | **Design** next to a schema in the tree turns its tables, keys and indexes into a design. |
 
 The `CREATE` SQL is verified against real PostgreSQL, SQLite, MySQL, MariaDB, SQL Server and Oracle
 (`crates/core/tests/e2e/design.rs`: run it twice, read the tables back, check keys, relations and `ON DELETE CASCADE`).
@@ -238,14 +238,22 @@ Decisions not written in the design document, or changes forced by what implemen
   text in the message. Execution plans: MySQL uses `EXPLAIN FORMAT=TREE` / `EXPLAIN ANALYZE` (8.0.18+), MariaDB uses
   `FORMAT=JSON` / `ANALYZE FORMAT=JSON`; the session picks the statement from the server's version string. `Verify` TLS trusts the bundled
   web roots plus `ca_file`, not the OS store (a server's default self-signed certificate is refused; use `ca_file` or "skip verify").
-* **SQL Server**: no session-wide read-only mode (production-label protection relies on the statement check in `core`). **Cancel and fetch-limit
-  stop reconnect**: tiberius 0.13's cancel leaves the connection out of step, so the connection is closed and reopened (an uncommitted
-  transaction is rolled back by the server and the error says so). Execution plans are not supported. Windows integrated authentication is not supported.
+* **SQL Server**: the server has no session-wide read-only mode, so in read-only mode every statement outside a user transaction is wrapped in
+  `BEGIN TRANSACTION` … `ROLLBACK` (writes are undone at the end; `core` rejects write statements first). What a rollback cannot undo is not
+  prevented: sequence / IDENTITY numbers, effects outside the database such as `xp_cmdshell`, and statements that cannot run in a transaction
+  such as `CREATE DATABASE`. **Cancel and fetch-limit stop reconnect**: tiberius 0.13's cancel leaves the connection out of step, so the connection
+  is closed and reopened (an uncommitted transaction is rolled back by the server and the error says so). Execution plans: estimated plans use
+  `SET SHOWPLAN_XML`, actual plans use `SET STATISTICS XML`. Windows integrated authentication is not supported.
 * **Oracle**: `oracledb` is a beta crate. It has no cancel API, so cancel kills the session from a second connection
-  (`ALTER SYSTEM KILL SESSION`, needs that privilege; the tab must be reopened afterwards). No session-wide read-only mode. Each statement is committed
-  unless a transaction is started explicitly (`SAVEPOINT` / `SET TRANSACTION`). `SkipVerify`, `ca_file` and TLS over an SSH tunnel are refused (never
-  silently downgraded). Types such as JSON and VECTOR show `(未対応の型: …)`. NUMBER has no trailing zeros. Statement splitting does not understand PL/SQL blocks or
-  `q'[...]'` quoting. Execution plans are not supported.
+  (`ALTER SYSTEM KILL SESSION`, needs that privilege; the tab must be reopened afterwards). Each statement is committed
+  unless a transaction is started explicitly (`SAVEPOINT` / `SET TRANSACTION`). Read-only mode runs each statement in
+  `SET TRANSACTION READ ONLY` and rolls back afterwards (the server rejects writes with ORA-01456). Execution plans: estimated plans use
+  `EXPLAIN PLAN`, actual plans use `V$SQL_PLAN_STATISTICS_ALL` (needs `SELECT` on the `V$` views, e.g. `SELECT_CATALOG_ROLE`).
+  TLS (`tcps`) trusts the bundled web roots plus `ca_file` (a PEM; verified against a real Oracle through a TLS proxy). `SkipVerify` and TLS over an SSH
+  tunnel are refused (`oracledb` has no way to skip verification or to set the server name; never silently downgraded). Types such as JSON and
+  VECTOR show an "unsupported type" placeholder. NUMBER has no trailing zeros. Statements are split with PL/SQL in mind: `BEGIN` / `DECLARE` blocks,
+  `CREATE PROCEDURE|FUNCTION|TRIGGER|PACKAGE [BODY]`, `q'[...]'` quoting and a `/` alone on a line are understood;
+  `COMPOUND TRIGGER` is left to the `/` line.
 * Open issues in the design document (distribution scope, Windows integrated authentication for SQL Server,
   how to build installers and auto-update) are not covered by this implementation.
 
