@@ -1,6 +1,10 @@
+<img src="crates/app/assets/icon-1024.png" width="96" alt="sqltool">
+
 # sqltool
 
 A database client aiming to be the fastest and lightest in the world.
+
+![demo](docs/demo.gif)
 
 - Download: [Mac (Apple Silicon)](https://github.com/saisai-web/db-manager/releases/latest/download/SQLTool-mac-arm64.dmg) / [Mac (Intel)](https://github.com/saisai-web/db-manager/releases/latest/download/SQLTool-mac-x86_64.dmg) / [Windows](https://github.com/saisai-web/db-manager/releases/latest/download/SQLTool-windows-x64.exe)
 - Features: [docs/overview.md](docs/overview.md)
