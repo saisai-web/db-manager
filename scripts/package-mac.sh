@@ -20,7 +20,7 @@ esac
 VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
 OUT="dist/mac-$ARCH"
 APP="$OUT/SQLTool.app"
-DMG="dist/SQLTool-$VERSION-mac-$ARCH.dmg"
+DMG="dist/SQLTool-mac-$ARCH.dmg"
 IDENTITY="${SIGN_IDENTITY:-$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application: [^"]*\)".*/\1/p' | head -1)}"
 NOTARY_PROFILE="${NOTARY_PROFILE:-sqltool}"
 
