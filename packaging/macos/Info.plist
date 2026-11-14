@@ -7,7 +7,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>SQLTool</string>
 	<key>CFBundleIdentifier</key>
-	<string>jp.co.yotsuba-system.sqltool</string>
+	<string>io.github.saisai-web.sqltool</string>
 	<key>CFBundleExecutable</key>
 	<string>sqltool</string>
 	<key>CFBundleIconFile</key>
